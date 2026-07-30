@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: gestao-jogos
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gestao_jogos
+    username: dev
+    password: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
