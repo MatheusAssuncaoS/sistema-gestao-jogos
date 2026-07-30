@@ -1,0 +1,49 @@
+package br.com.matheusassuncao.gestaojogos.dominio;
+
+import jakarta.persistence.*;
+
+import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
+@Entity
+@Table(name = "usuario")
+public class Usuario {
+
+    @Id
+    @GeneratedValue
+    private UUID id;
+
+    @Column(nullable = false, length = 150)
+    private String nome;
+
+    @Column(nullable = false, length = 200, unique = true)
+    private String email;
+
+    @Column(name = "senha_hash", nullable = false)
+    private String senhaHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StatusUsuario status = StatusUsuario.PENDENTE;
+
+    @Column(name = "criado_em", nullable = false)
+    private OffsetDateTime criadoEm = OffsetDateTime.now();
+
+    @Column(name = "atualizado_em", nullable = false)
+    private OffsetDateTime atualizadoEm = OffsetDateTime.now();
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "usuario_papel",
+            joinColumns = @JoinColumn(name = "usuario_id"),
+            inverseJoinColumns = @JoinColumn(name = "papel_id")
+    )
+    private Set<Papel> papeis = new HashSet<>();
+
+    protected Usuario() {
+    }
+
+    // getters e setters conforme necessário
+}
