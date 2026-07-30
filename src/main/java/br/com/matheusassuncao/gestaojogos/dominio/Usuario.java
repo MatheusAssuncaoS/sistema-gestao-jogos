@@ -45,5 +45,20 @@ public class Usuario {
     protected Usuario() {
     }
 
-    // getters e setters conforme necessário
+    public String getEmail() {
+        return email;
+    }
+
+    public String getSenhaHash() {
+        return senhaHash;
+    }
+
+    public StatusUsuario getStatus() {
+        return status;
+    }
+
+    public Set<Papel> getPapeis() {
+        return papeis;
+    }
+// getters e setters conforme necessário
 }
