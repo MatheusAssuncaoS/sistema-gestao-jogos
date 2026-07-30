@@ -1,5 +1,7 @@
 # Sistema de Gestão de Jogos
 
+![CI](https://github.com/MatheusAssuncaoS/sistema-gestao-jogos/actions/workflows/ci.yml/badge.svg)
+
 Sistema web para gestão de partidas esportivas de um clube. Substitui o controle manual das partidas, centralizando o agendamento, as inscrições dos jogadores, a formação de equipes e o controle disciplinar, começando pelo futebol e preparado para receber novas modalidades (baralho, damas, sinuca) sem mudanças estruturais.
 
 > Projeto em desenvolvimento incremental, com releases versionadas por marco. Acompanhe pelas [tags](../../tags) e [milestones](../../milestones).
@@ -48,7 +50,17 @@ A regra geral: pessimista para operações curtas e disputadas, onde errar corro
 
 ## Como rodar
 
-*Instruções disponíveis após o setup inicial do projeto (Marco 0).*
+Pré-requisitos: JDK 25, Docker e Docker Compose.
+
+```bash
+# sobe o PostgreSQL local
+docker compose up -d
+
+# inicia a aplicação
+./mvnw spring-boot:run
+```
+
+A aplicação sobe em `http://localhost:8080`. Para rodar os testes: `./mvnw verify`.
 
 ## Licença
 
