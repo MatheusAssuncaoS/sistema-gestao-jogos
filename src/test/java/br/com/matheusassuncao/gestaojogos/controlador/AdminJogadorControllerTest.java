@@ -59,12 +59,6 @@ class AdminJogadorControllerTest extends IntegracaoTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @BeforeEach
-    void limparBase() {
-        tokenRepository.deleteAll();
-        jogadorRepository.deleteAll();
-        usuarioRepository.deleteAll();
-    }
 
     @Test
     @DisplayName("UC27: aprovação cria o perfil de jogador com categoria e situação")

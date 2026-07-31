@@ -29,7 +29,7 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
 
     @Autowired
     private JogadorRepository jogadorRepository;
-    
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -42,12 +42,6 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @BeforeEach
-    void limparBase() {
-        tokenRepository.deleteAll();
-        jogadorRepository.deleteAll();
-        usuarioRepository.deleteAll();
-    }
 
     @Test
     @DisplayName("UC03: solicitação gera token válido para o usuário")

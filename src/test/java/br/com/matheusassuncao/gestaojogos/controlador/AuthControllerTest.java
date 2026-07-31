@@ -38,11 +38,6 @@ class AuthControllerTest extends IntegracaoTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @BeforeEach
-    void limparBase() {
-        tokenRepository.deleteAll();
-        usuarioRepository.deleteAll();
-    }
 
     @Test
     @DisplayName("UC01: cadastro cria usuário PENDENTE, sem papéis e sem expor a senha")
