@@ -45,6 +45,12 @@ public class Usuario {
     protected Usuario() {
     }
 
+    public Usuario(String nome, String email, String senhaHash) {
+        this.nome = nome;
+        this.email = email;
+        this.senhaHash = senhaHash;
+    }
+
     public String getEmail() {
         return email;
     }
@@ -60,5 +66,12 @@ public class Usuario {
     public Set<Papel> getPapeis() {
         return papeis;
     }
-// getters e setters conforme necessário
+
+    public String getNome() {
+        return nome;
+    }
+
+    public UUID getId() {
+        return id;
+    }
 }
