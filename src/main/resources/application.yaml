@@ -11,3 +11,9 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+gestao-jogos:
+  admin-inicial:
+    habilitado: true
+    nome: Administrador
+    email: ${GESTAO_JOGOS_ADMIN_INICIAL_EMAIL:admin@clube.local}
+    senha: ${GESTAO_JOGOS_ADMIN_INICIAL_SENHA:admin12345}

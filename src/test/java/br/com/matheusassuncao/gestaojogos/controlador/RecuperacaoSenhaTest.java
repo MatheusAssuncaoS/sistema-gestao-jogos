@@ -13,6 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import br.com.matheusassuncao.gestaojogos.repositorio.JogadorRepository;
+
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +28,9 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
     private static final String EMAIL = "matheus@teste.com";
 
     @Autowired
+    private JogadorRepository jogadorRepository;
+
+    @Autowired
     private MockMvc mockMvc;
 
     @Autowired
@@ -37,11 +42,6 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @BeforeEach
-    void limparBase() {
-        tokenRepository.deleteAll();
-        usuarioRepository.deleteAll();
-    }
 
     @Test
     @DisplayName("UC03: solicitação gera token válido para o usuário")

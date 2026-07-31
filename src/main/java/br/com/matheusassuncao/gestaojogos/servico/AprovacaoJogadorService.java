@@ -1,0 +1,102 @@
+package br.com.matheusassuncao.gestaojogos.servico;
+
+import br.com.matheusassuncao.gestaojogos.dominio.Categoria;
+import br.com.matheusassuncao.gestaojogos.dominio.Jogador;
+import br.com.matheusassuncao.gestaojogos.dominio.Papel;
+import br.com.matheusassuncao.gestaojogos.dominio.StatusUsuario;
+import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
+import br.com.matheusassuncao.gestaojogos.dto.AprovarJogadorRequest;
+import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
+import br.com.matheusassuncao.gestaojogos.excecao.RegraNegocioException;
+import br.com.matheusassuncao.gestaojogos.repositorio.CategoriaRepository;
+import br.com.matheusassuncao.gestaojogos.repositorio.JogadorRepository;
+import br.com.matheusassuncao.gestaojogos.repositorio.PapelRepository;
+import br.com.matheusassuncao.gestaojogos.repositorio.UsuarioRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * UC27: aprovar cadastro de jogador.
+ */
+@Service
+public class AprovacaoJogadorService {
+
+    private final UsuarioRepository usuarioRepository;
+    private final JogadorRepository jogadorRepository;
+    private final CategoriaRepository categoriaRepository;
+    private final PapelRepository papelRepository;
+
+    public AprovacaoJogadorService(UsuarioRepository usuarioRepository,
+                                   JogadorRepository jogadorRepository,
+                                   CategoriaRepository categoriaRepository,
+                                   PapelRepository papelRepository) {
+        this.usuarioRepository = usuarioRepository;
+        this.jogadorRepository = jogadorRepository;
+        this.categoriaRepository = categoriaRepository;
+        this.papelRepository = papelRepository;
+    }
+
+    /**
+     * Usuários cadastrados que ainda não têm perfil de jogador.
+     */
+    @Transactional(readOnly = true)
+    public List<Usuario> listarPendentes() {
+        return usuarioRepository.findByStatusAndSemPerfilDeJogador(StatusUsuario.PENDENTE);
+    }
+
+    /**
+     * Cria o perfil de jogador, atribui o papel JOGADOR e ativa a conta.
+     * A partir daqui o associado consegue efetivamente usar o sistema.
+     */
+    @Transactional
+    public Jogador aprovar(UUID usuarioId, AprovarJogadorRequest request, String emailDoAdministrador) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado."));
+
+        if (jogadorRepository.existsByUsuarioId(usuarioId)) {
+            throw new RegraNegocioException("Este cadastro já foi aprovado.");
+        }
+
+        if (usuario.getStatus() == StatusUsuario.BLOQUEADO
+                || usuario.getStatus() == StatusUsuario.INATIVO) {
+            throw new RegraNegocioException(
+                    "Não é possível aprovar um cadastro bloqueado ou inativo."
+            );
+        }
+
+        Categoria categoria = categoriaRepository.findById(request.categoriaId())
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Categoria não encontrada."));
+
+        Usuario administrador = usuarioRepository.findByEmailIgnoreCase(emailDoAdministrador)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Administrador não encontrado."));
+
+        Papel papelJogador = papelRepository.findByNome("JOGADOR")
+                .orElseThrow(() -> new IllegalStateException(
+                        "Papel JOGADOR não encontrado. Verifique a migration V1."
+                ));
+
+        usuario.ativar();
+        usuario.adicionarPapel(papelJogador);
+
+        Jogador jogador = new Jogador(
+                usuario,
+                normalizar(request.matriculaAssociado()),
+                categoria,
+                request.situacaoAssociativa(),
+                administrador
+        );
+
+        return jogadorRepository.save(jogador);
+    }
+
+    private String normalizar(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return null;
+        }
+
+        return texto.trim();
+    }
+}

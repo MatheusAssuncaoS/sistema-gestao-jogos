@@ -89,4 +89,18 @@ public class Usuario {
         this.senhaHash = senhaHash;
         this.atualizadoEm = OffsetDateTime.now();
     }
+
+    public void ativar() {
+        this.status = StatusUsuario.ATIVO;
+        this.atualizadoEm = OffsetDateTime.now();
+    }
+
+    public void adicionarPapel(Papel papel) {
+        this.papeis.add(papel);
+        this.atualizadoEm = OffsetDateTime.now();
+    }
+
+    public OffsetDateTime getCriadoEm() {
+        return criadoEm;
+    }
 }
