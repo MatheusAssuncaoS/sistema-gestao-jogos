@@ -13,6 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
+import br.com.matheusassuncao.gestaojogos.repositorio.JogadorRepository;
+
 import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,6 +27,9 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
     private static final String SENHA_NOVA = "novasenha123";
     private static final String EMAIL = "matheus@teste.com";
 
+    @Autowired
+    private JogadorRepository jogadorRepository;
+    
     @Autowired
     private MockMvc mockMvc;
 
@@ -40,6 +45,7 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
     @BeforeEach
     void limparBase() {
         tokenRepository.deleteAll();
+        jogadorRepository.deleteAll();
         usuarioRepository.deleteAll();
     }
 

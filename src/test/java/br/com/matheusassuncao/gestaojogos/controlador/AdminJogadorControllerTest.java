@@ -19,6 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import br.com.matheusassuncao.gestaojogos.repositorio.TokenRecuperacaoSenhaRepository;
+
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +37,9 @@ class AdminJogadorControllerTest extends IntegracaoTest {
 
     /** Série B, criada pelo seed da migration V3. */
     private static final long CATEGORIA_SERIE_B = 2L;
+
+    @Autowired
+    private TokenRecuperacaoSenhaRepository tokenRepository;
 
     @Autowired
     private MockMvc mockMvc;
@@ -56,6 +61,7 @@ class AdminJogadorControllerTest extends IntegracaoTest {
 
     @BeforeEach
     void limparBase() {
+        tokenRepository.deleteAll();
         jogadorRepository.deleteAll();
         usuarioRepository.deleteAll();
     }
