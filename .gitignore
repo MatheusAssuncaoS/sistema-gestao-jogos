@@ -44,3 +44,7 @@ Thumbs.db
 *.env.local
 application-local.yml
 application-local.properties
+
+# Resíduos de teste manual da API
+cookies.txt
+*.cookies

@@ -43,6 +43,14 @@ Já a edição de uma partida pelo organizador tem o perfil oposto: a operação
 
 A regra geral: pessimista para operações curtas e disputadas, onde errar corrompe dados; otimista para operações longas e raras, onde errar custa apenas um retry. Os fluxos completos estão em [docs/design-mvp.md](docs/design-mvp.md).
 
+### Autenticação: sessão agora, JWT depois
+
+O MVP autentica por sessão com cookie, o padrão do Spring Security. A escolha foi deliberada e tem prazo de validade: sessão exige menos código, entrega o fluxo completo mais rápido e mantém o logout realmente invalidando o acesso no servidor, o que é suficiente para o volume de um clube.
+
+O custo aparece em dois pontos. Primeiro, o estado da sessão vive na memória da aplicação, o que complica rodar várias instâncias sem um armazenamento compartilhado. Segundo, como o navegador envia o cookie automaticamente, a proteção contra CSRF passa a ser necessária, e ela está desabilitada aqui para simplificar o consumo da API por clientes REST. Essa é uma dívida técnica consciente, registrada em comentário no `SecurityConfig`.
+
+A migração planejada para JWT stateless resolve os dois pontos de uma vez: nada de estado no servidor e nenhum header enviado automaticamente pelo navegador, o que torna o CSRF inaplicável. O trade-off que ela traz é o logout, já que um token continua válido até expirar a menos que se mantenha uma lista de revogação.
+
 ## Documentação
 
 - [Levantamento de requisitos](docs/requisitos.md), regras de negócio e casos de uso
