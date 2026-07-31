@@ -9,6 +9,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
+import org.springframework.security.access.AccessDeniedException;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -78,6 +81,28 @@ public class TratadorDeErros {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(
                 HttpStatus.FORBIDDEN,
                 "Esta conta está bloqueada."
+        );
+        problema.setTitle("Acesso negado");
+
+        return problema;
+    }
+
+    @ExceptionHandler(RecursoNaoEncontradoException.class)
+    public ProblemDetail tratarRecursoNaoEncontrado(RecursoNaoEncontradoException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                excecao.getMessage()
+        );
+        problema.setTitle("Recurso não encontrado");
+
+        return problema;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail tratarAcessoNegado(AccessDeniedException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                "Você não tem permissão para executar esta ação."
         );
         problema.setTitle("Acesso negado");
 
