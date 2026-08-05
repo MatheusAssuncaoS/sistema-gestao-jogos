@@ -48,3 +48,6 @@ application-local.properties
 # Resíduos de teste manual da API
 cookies.txt
 *.cookies
+*.txt.cookies
+admin.txt
+joao.txt

@@ -103,4 +103,18 @@ public class Usuario {
     public OffsetDateTime getCriadoEm() {
         return criadoEm;
     }
+
+    /**
+     * O nome do papel é a fonte de verdade da autorização, então a checagem
+     * mora na própria entidade em vez de espalhar comparações pelos serviços.
+     */
+    public boolean possuiPapel(String nomeDoPapel) {
+        return papeis.stream()
+                .anyMatch(papel -> papel.getNome().equals(nomeDoPapel));
+    }
+
+    public void removerPapel(Papel papel) {
+        this.papeis.remove(papel);
+        this.atualizadoEm = OffsetDateTime.now();
+    }
 }
