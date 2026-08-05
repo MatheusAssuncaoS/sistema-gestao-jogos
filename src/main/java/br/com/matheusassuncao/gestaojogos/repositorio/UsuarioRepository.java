@@ -29,4 +29,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
             ORDER BY u.criadoEm
             """)
     List<Usuario> findByStatusAndSemPerfilDeJogador(@Param("status") StatusUsuario status);
+
+    List<Usuario> findAllByOrderByCriadoEm();
 }

@@ -25,4 +25,24 @@ public class Papel {
     public String getNome() {
         return nome;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+
+        if (!(obj instanceof Papel outro)) {
+            return false;
+        }
+
+        return id != null && id.equals(outro.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+
+
 }
