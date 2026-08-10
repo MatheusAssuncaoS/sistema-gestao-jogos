@@ -51,6 +51,8 @@ public abstract class IntegracaoTest {
     void limparDadosTransacionais() {
         jdbcTemplate.execute("""
                 TRUNCATE TABLE
+                    equipe,
+                    partida,
                     token_recuperacao_senha,
                     jogador,
                     usuario_papel,

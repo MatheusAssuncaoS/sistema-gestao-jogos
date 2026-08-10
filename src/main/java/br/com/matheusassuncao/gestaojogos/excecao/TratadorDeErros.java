@@ -9,6 +9,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import org.springframework.dao.OptimisticLockingFailureException;
+
 import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
 import org.springframework.security.access.AccessDeniedException;
 
@@ -105,6 +107,21 @@ public class TratadorDeErros {
                 "Você não tem permissão para executar esta ação."
         );
         problema.setTitle("Acesso negado");
+
+        return problema;
+    }
+
+    /**
+     * Lock otimista: duas edições simultâneas da mesma partida. A segunda é
+     * rejeitada para não sobrescrever a primeira sem que ninguém perceba.
+     */
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ProblemDetail tratarConflitoDeEdicao(OptimisticLockingFailureException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "Este registro foi alterado por outra pessoa. Recarregue e tente novamente."
+        );
+        problema.setTitle("Conflito de edição");
 
         return problema;
     }
