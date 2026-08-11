@@ -13,6 +13,7 @@ import br.com.matheusassuncao.gestaojogos.repositorio.ModalidadeRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.PapelRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.PartidaRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.UsuarioRepository;
+import br.com.matheusassuncao.gestaojogos.servico.CalendarioService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,7 +25,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.DayOfWeek;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,9 +43,13 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     private static final String SENHA = "senha12345";
     private static final String EMAIL_ORGANIZADOR = "organizador@clube.local";
     private static final String EMAIL_JOGADOR = "jogador@teste.com";
+    private static final ZoneId FUSO_DO_CLUBE = ZoneId.of("America/Sao_Paulo");
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private CalendarioService calendarioService;
 
     @Autowired
     private UsuarioRepository usuarioRepository;
@@ -82,7 +90,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         MvcResult resultado = mockMvc.perform(post("/api/organizador/partidas")
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeCriacao(OffsetDateTime.now().plusDays(3))))
+                        .content(corpoDeCriacao(proximaDataValida())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("RASCUNHO"))
                 .andExpect(jsonPath("$.modalidade").value("Futebol"))
@@ -123,7 +131,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         criarOrganizador();
         MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
 
-        OffsetDateTime inicio = OffsetDateTime.now().plusDays(3);
+        OffsetDateTime inicio = proximaDataValida();
 
         String corpo = """
                 {
@@ -160,13 +168,38 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
                   "localId": "%s",
                   "inicio": "%s"
                 }
-                """.formatted(UUID.randomUUID(), localId, OffsetDateTime.now().plusDays(3));
+                """.formatted(UUID.randomUUID(), localId, proximaDataValida());
 
         mockMvc.perform(post("/api/organizador/partidas")
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpo))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("RN06: partida fora dos dias configurados devolve 409")
+    void partidaForaDoCalendario() throws Exception {
+        criarOrganizador();
+        MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
+
+        // Uma terça-feira às 3h da manhã não está no calendário do clube.
+        OffsetDateTime foraDoCalendario = OffsetDateTime.now()
+                .atZoneSameInstant(FUSO_DO_CLUBE)
+                .toLocalDate()
+                .plusDays(1)
+                .with(java.time.temporal.TemporalAdjusters.next(DayOfWeek.TUESDAY))
+                .atTime(LocalTime.of(3, 0))
+                .atZone(FUSO_DO_CLUBE)
+                .toOffsetDateTime();
+
+        mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(foraDoCalendario)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.containsString("não realiza partidas")));
     }
 
     @Test
@@ -177,7 +210,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
 
         UUID partidaId = criarPartidaViaApi(sessao);
 
-        OffsetDateTime novoInicio = OffsetDateTime.now().plusDays(5);
+        OffsetDateTime novoInicio = outraDataValida();
 
         mockMvc.perform(put("/api/organizador/partidas/{id}", partidaId)
                         .session(sessao)
@@ -199,7 +232,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         mockMvc.perform(put("/api/organizador/partidas/{id}", partidaId)
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeEdicao(OffsetDateTime.now().plusDays(5), 0)))
+                        .content(corpoDeEdicao(outraDataValida(), 0)))
                 .andExpect(status().isOk());
 
         // segunda edição com a versão antiga: simula alguém que carregou a
@@ -207,7 +240,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         mockMvc.perform(put("/api/organizador/partidas/{id}", partidaId)
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeEdicao(OffsetDateTime.now().plusDays(6), 0)))
+                        .content(corpoDeEdicao(outraDataValida(), 0)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Conflito de edição"));
     }
@@ -273,7 +306,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         mockMvc.perform(put("/api/organizador/partidas/{id}", partidaId)
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeEdicao(OffsetDateTime.now().plusDays(5), 1)))
+                        .content(corpoDeEdicao(outraDataValida(), 1)))
                 .andExpect(status().isConflict());
     }
 
@@ -329,7 +362,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/organizador/partidas")
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeCriacao(OffsetDateTime.now().plusDays(3))))
+                        .content(corpoDeCriacao(proximaDataValida())))
                 .andExpect(status().isForbidden());
     }
 
@@ -340,11 +373,37 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * Primeira data futura que satisfaz o calendário do clube.
+     *
+     * Calcular em vez de fixar um deslocamento deixa o teste independente do
+     * dia da semana em que ele roda.
+     */
+    private OffsetDateTime proximaDataValida() {
+        return calendarioService.listarProximosHorarios(30).stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "O calendário padrão da migration V5 deveria oferecer horários."
+                ));
+    }
+
+    /**
+     * Segunda data válida, para os testes de edição que mudam o horário.
+     */
+    private OffsetDateTime outraDataValida() {
+        return calendarioService.listarProximosHorarios(30).stream()
+                .skip(1)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "O calendário padrão deveria oferecer mais de um horário."
+                ));
+    }
+
     private UUID criarPartidaViaApi(MockHttpSession sessao) throws Exception {
         MvcResult resultado = mockMvc.perform(post("/api/organizador/partidas")
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeCriacao(OffsetDateTime.now().plusDays(3))))
+                        .content(corpoDeCriacao(proximaDataValida())))
                 .andExpect(status().isCreated())
                 .andReturn();
 
