@@ -38,17 +38,20 @@ public class PartidaService {
     private final LocalPartidaRepository localPartidaRepository;
     private final CategoriaRepository categoriaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final CalendarioService calendarioService;
 
     public PartidaService(PartidaRepository partidaRepository,
                           ModalidadeRepository modalidadeRepository,
                           LocalPartidaRepository localPartidaRepository,
                           CategoriaRepository categoriaRepository,
-                          UsuarioRepository usuarioRepository) {
+                          UsuarioRepository usuarioRepository,
+                          CalendarioService calendarioService) {
         this.partidaRepository = partidaRepository;
         this.modalidadeRepository = modalidadeRepository;
         this.localPartidaRepository = localPartidaRepository;
         this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
+        this.calendarioService = calendarioService;
     }
 
     @Transactional(readOnly = true)
@@ -72,9 +75,9 @@ public class PartidaService {
     /**
      * A partida nasce em RASCUNHO, com as duas equipes criadas junto.
      *
-     * TODO (issue #5): validar contra o calendário antes de criar.
-     * RN06 (apenas em dias configurados) e RN07 (feriados e recessos impedem
-     * a criação) entram aqui, assim que a configuração de calendário existir.
+     * A data é validada contra o calendário (RN06 e RN07) antes de qualquer
+     * escrita: o clube só realiza partidas em dias e horários configurados,
+     * e feriados e recessos bloqueiam o agendamento.
      */
     @Transactional
     public PartidaResponse criar(CriarPartidaRequest request, String emailDoOrganizador) {
@@ -84,6 +87,8 @@ public class PartidaService {
         LocalPartida local = buscarLocal(request.localId());
         Categoria categoria = buscarCategoriaOpcional(request.categoriaId());
         Usuario organizador = buscarOrganizador(emailDoOrganizador);
+
+        calendarioService.validarDataDisponivel(request.inicio());
 
         validarPeriodoDeInscricao(
                 request.inscricoesAbremEm(),
@@ -123,6 +128,8 @@ public class PartidaService {
 
         LocalPartida local = buscarLocal(request.localId());
         Categoria categoria = buscarCategoriaOpcional(request.categoriaId());
+
+        calendarioService.validarDataDisponivel(request.inicio());
 
         validarPeriodoDeInscricao(
                 request.inscricoesAbremEm(),
