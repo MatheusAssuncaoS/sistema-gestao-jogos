@@ -2,7 +2,9 @@ package br.com.matheusassuncao.gestaojogos.controlador;
 
 import br.com.matheusassuncao.gestaojogos.dto.CriarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.EditarPartidaRequest;
+import br.com.matheusassuncao.gestaojogos.dto.InscritoResponse;
 import br.com.matheusassuncao.gestaojogos.dto.PartidaResponse;
+import br.com.matheusassuncao.gestaojogos.servico.InscricaoService;
 import br.com.matheusassuncao.gestaojogos.servico.PartidaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -30,9 +32,12 @@ import java.util.UUID;
 public class OrganizadorPartidaController {
 
     private final PartidaService partidaService;
+    private final InscricaoService inscricaoService;
 
-    public OrganizadorPartidaController(PartidaService partidaService) {
+    public OrganizadorPartidaController(PartidaService partidaService,
+                                        InscricaoService inscricaoService) {
         this.partidaService = partidaService;
+        this.inscricaoService = inscricaoService;
     }
 
     @GetMapping
@@ -65,7 +70,18 @@ public class OrganizadorPartidaController {
     }
 
     @PostMapping("/{partidaId}/cancelar")
-    public PartidaResponse cancelar(@PathVariable UUID partidaId) {
-        return partidaService.cancelar(partidaId);
+    public PartidaResponse cancelar(@PathVariable UUID partidaId,
+                                    @AuthenticationPrincipal UserDetails organizador) {
+        return partidaService.cancelar(partidaId, organizador.getUsername());
+    }
+
+    /**
+     * UC17: consultar inscrições.
+     */
+    @GetMapping("/{partidaId}/inscritos")
+    public List<InscritoResponse> inscritos(@PathVariable UUID partidaId) {
+        return inscricaoService.listarInscritos(partidaId).stream()
+                .map(InscritoResponse::de)
+                .toList();
     }
 }
