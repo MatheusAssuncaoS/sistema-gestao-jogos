@@ -41,6 +41,7 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
             SELECT i FROM Inscricao i
             JOIN FETCH i.jogador j
             JOIN FETCH j.usuario
+            LEFT JOIN FETCH j.categoria
             WHERE i.partida.id = :partidaId
               AND i.status <> br.com.matheusassuncao.gestaojogos.dominio.StatusInscricao.CANCELADA
             ORDER BY i.dataSolicitacao
@@ -49,7 +50,8 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
 
     @Query("""
             SELECT i FROM Inscricao i
-            JOIN FETCH i.partida
+            JOIN FETCH i.partida p
+            JOIN FETCH p.local
             WHERE i.jogador.id = :jogadorId
               AND i.status <> br.com.matheusassuncao.gestaojogos.dominio.StatusInscricao.CANCELADA
             ORDER BY i.dataSolicitacao DESC

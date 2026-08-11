@@ -12,6 +12,7 @@ import br.com.matheusassuncao.gestaojogos.repositorio.InscricaoRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.JogadorRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.PartidaRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.UsuarioRepository;
+import org.hibernate.Hibernate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -100,6 +101,11 @@ public class InscricaoService {
 
         log.info("Jogador {} inscrito na partida {} ({}/{}).",
                 jogador.getId(), partidaId, confirmados + 1, partida.getCapacidade());
+
+        // A resposta HTTP é montada fora desta transação (open-in-view
+        // desligado): inicializa o proxy do local aqui, enquanto a sessão
+        // ainda está aberta, para que InscricaoResponse.de() possa lê-lo.
+        Hibernate.initialize(partida.getLocal());
 
         return inscricao;
     }
