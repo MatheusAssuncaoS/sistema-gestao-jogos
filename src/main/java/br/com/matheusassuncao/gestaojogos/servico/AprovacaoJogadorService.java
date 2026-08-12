@@ -56,6 +56,14 @@ public class AprovacaoJogadorService {
     }
 
     /**
+     * Cadastros recusados, candidatos a voltar para a fila de aprovação.
+     */
+    @Transactional(readOnly = true)
+    public List<Usuario> listarRecusados() {
+        return usuarioRepository.findByStatusAndSemPerfilDeJogador(StatusUsuario.RECUSADO);
+    }
+
+    /**
      * Cria o perfil de jogador, atribui o papel JOGADOR e ativa a conta.
      * A partir daqui o associado consegue efetivamente usar o sistema.
      */
@@ -115,6 +123,25 @@ public class AprovacaoJogadorService {
 
         usuario.recusar();
         return usuarioRepository.save(usuario);
+    }
+
+    /**
+     * Reabre um cadastro recusado, devolvendo-o para a fila de aprovação.
+     * A decisão de recusa pode ter sido um engano ou ficar desatualizada
+     * quando a pessoa se associa depois, então precisa ser reversível.
+     */
+    @Transactional
+    public void reabrir(UUID usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado."));
+
+        if (usuario.getStatus() != StatusUsuario.RECUSADO) {
+            throw new RegraNegocioException(
+                    "Apenas cadastros recusados podem voltar para a fila de aprovação."
+            );
+        }
+
+        usuario.reabrirCadastro();
     }
 
     private String normalizar(String texto) {

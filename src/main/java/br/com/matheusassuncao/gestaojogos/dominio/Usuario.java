@@ -100,6 +100,11 @@ public class Usuario {
         this.atualizadoEm = OffsetDateTime.now();
     }
 
+    public void reabrirCadastro() {
+        this.status = StatusUsuario.PENDENTE;
+        this.atualizadoEm = OffsetDateTime.now();
+    }
+
     public void adicionarPapel(Papel papel) {
         this.papeis.add(papel);
         this.atualizadoEm = OffsetDateTime.now();

@@ -289,6 +289,124 @@ class AdminJogadorControllerTest extends IntegracaoTest {
     }
 
     @Test
+    @DisplayName("Reabrir um cadastro recusado devolve 204 e o status vira PENDENTE")
+    void reabrirCadastroRecusado() throws Exception {
+        criarAdministrador();
+        Usuario recusado = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", recusado.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/reabrir", recusado.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isNoContent());
+
+        Usuario atualizado = usuarioRepository.findById(recusado.getId()).orElseThrow();
+        assertThat(atualizado.getStatus()).isEqualTo(StatusUsuario.PENDENTE);
+    }
+
+    @Test
+    @DisplayName("Reabrir um cadastro pendente devolve 409")
+    void reabrirCadastroPendente() throws Exception {
+        criarAdministrador();
+        Usuario pendente = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/reabrir", pendente.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Reabrir um cadastro ativo devolve 409")
+    void reabrirCadastroAtivo() throws Exception {
+        criarAdministrador();
+        Usuario pendente = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/aprovar", pendente.getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeAprovacao("12345", CATEGORIA_SERIE_B, "REGULAR")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/reabrir", pendente.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Reabrir um id inexistente devolve 404")
+    void reabrirUsuarioInexistente() throws Exception {
+        criarAdministrador();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/reabrir", UUID.randomUUID())
+                        .session(sessaoAdmin))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Reabrir sem papel de administrador devolve 403")
+    void reabrirSemPapelDeAdministrador() throws Exception {
+        criarAdministrador();
+        Usuario recusado = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", recusado.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk());
+
+        MockHttpSession sessaoJogador = autenticar(EMAIL_JOGADOR);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/reabrir", recusado.getId())
+                        .session(sessaoJogador))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Ciclo completo: recusar, listar, reabrir e voltar a listar")
+    void cicloDeRecusaEReabertura() throws Exception {
+        criarAdministrador();
+        Usuario usuario = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", usuario.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/jogadores/pendentes").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/admin/jogadores/recusados").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].email").value(EMAIL_JOGADOR));
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/reabrir", usuario.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/admin/jogadores/recusados").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/admin/jogadores/pendentes").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].email").value(EMAIL_JOGADOR));
+    }
+
+    @Test
     @DisplayName("Categorias ativas ficam disponíveis para o formulário de aprovação")
     void listagemDeCategorias() throws Exception {
         criarAdministrador();

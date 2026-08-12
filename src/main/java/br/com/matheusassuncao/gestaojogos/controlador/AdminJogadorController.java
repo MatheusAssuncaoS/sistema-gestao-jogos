@@ -9,6 +9,7 @@ import br.com.matheusassuncao.gestaojogos.dto.JogadorResponse;
 import br.com.matheusassuncao.gestaojogos.dto.UsuarioResumoResponse;
 import br.com.matheusassuncao.gestaojogos.servico.AprovacaoJogadorService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -58,6 +60,19 @@ public class AdminJogadorController {
         Usuario usuario = aprovacaoJogadorService.recusar(usuarioId);
 
         return UsuarioResumoResponse.de(usuario);
+    }
+
+    @GetMapping("/recusados")
+    public List<CadastroPendenteResponse> listarRecusados() {
+        return aprovacaoJogadorService.listarRecusados().stream()
+                .map(CadastroPendenteResponse::de)
+                .toList();
+    }
+
+    @PostMapping("/{usuarioId}/reabrir")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reabrir(@PathVariable UUID usuarioId) {
+        aprovacaoJogadorService.reabrir(usuarioId);
     }
 
     @PostMapping("/{usuarioId}/aprovar")
