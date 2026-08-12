@@ -14,8 +14,8 @@ O clube gerencia suas partidas manualmente, o que dificulta a organização dos 
 
 | Marco | Versão | Escopo | Status |
 |-------|--------|--------|--------|
-| 0 — Fundação | `v0.0.1` | Setup do projeto, documentação e CI | 🔨 Em andamento |
-| 1 — MVP | `v1.0.0` | Cadastro, login, partidas, calendário e inscrições com limite de vagas | Planejado |
+| 0 — Fundação | `v0.0.1` | Setup do projeto, documentação e CI | ✅ Concluído |
+| 1 — MVP | `v1.0.0` | Cadastro, login, partidas, calendário e inscrições com limite de vagas | ✅ Concluído |
 | 2 — Regras ricas | `v2.0.0` | Lista de espera, séries A/B/C, escalação e controle disciplinar | Planejado |
 | 3 — Operação | `v3.0.0` | Presença, resultados, relatórios e novas modalidades | Planejado |
 
