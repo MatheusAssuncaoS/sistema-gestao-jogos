@@ -4,6 +4,7 @@ import br.com.matheusassuncao.gestaojogos.dominio.Categoria;
 import br.com.matheusassuncao.gestaojogos.dominio.LocalPartida;
 import br.com.matheusassuncao.gestaojogos.dominio.Modalidade;
 import br.com.matheusassuncao.gestaojogos.dominio.Partida;
+import br.com.matheusassuncao.gestaojogos.dominio.StatusPartida;
 import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
 import br.com.matheusassuncao.gestaojogos.dto.CriarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.EditarPartidaRequest;
@@ -39,24 +40,42 @@ public class PartidaService {
     private final CategoriaRepository categoriaRepository;
     private final UsuarioRepository usuarioRepository;
     private final CalendarioService calendarioService;
+    private final InscricaoService inscricaoService;
 
     public PartidaService(PartidaRepository partidaRepository,
                           ModalidadeRepository modalidadeRepository,
                           LocalPartidaRepository localPartidaRepository,
                           CategoriaRepository categoriaRepository,
                           UsuarioRepository usuarioRepository,
-                          CalendarioService calendarioService) {
+                          CalendarioService calendarioService,
+                          InscricaoService inscricaoService) {
         this.partidaRepository = partidaRepository;
         this.modalidadeRepository = modalidadeRepository;
         this.localPartidaRepository = localPartidaRepository;
         this.categoriaRepository = categoriaRepository;
         this.usuarioRepository = usuarioRepository;
         this.calendarioService = calendarioService;
+        this.inscricaoService = inscricaoService;
     }
 
     @Transactional(readOnly = true)
     public List<PartidaResponse> listarFuturas() {
         return partidaRepository.findByInicioAfterOrderByInicio(OffsetDateTime.now())
+                .stream()
+                .map(PartidaResponse::de)
+                .toList();
+    }
+
+    /**
+     * UC05: partidas que o jogador pode ver e nas quais pode se inscrever.
+     */
+    @Transactional(readOnly = true)
+    public List<PartidaResponse> listarAbertas() {
+        return partidaRepository
+                .findByStatusInAndInicioAfterOrderByInicio(
+                        List.of(StatusPartida.ABERTA, StatusPartida.LOTADA),
+                        OffsetDateTime.now()
+                )
                 .stream()
                 .map(PartidaResponse::de)
                 .toList();
@@ -162,16 +181,20 @@ public class PartidaService {
     }
 
     /**
-     * No MVP o cancelamento apenas altera o status. O efeito sobre as
-     * inscrições entra junto com a issue #6.
+     * Cancelar a partida cancela junto todas as inscrições ativas: quem
+     * estava confirmado precisa saber que o jogo não vai acontecer.
      */
     @Transactional
-    public PartidaResponse cancelar(UUID partidaId) {
+    public PartidaResponse cancelar(UUID partidaId, String emailDoOrganizador) {
         Partida partida = buscar(partidaId);
         partida.cancelar();
-        partidaRepository.flush();
 
-        log.info("Partida {} cancelada.", partidaId);
+        Usuario organizador = usuarioRepository.findByEmailIgnoreCase(emailDoOrganizador)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Organizador não encontrado."));
+
+        int canceladas = inscricaoService.cancelarInscricoesDaPartida(partida, organizador);
+
+        log.info("Partida {} cancelada, com {} inscrições afetadas.", partidaId, canceladas);
 
         return PartidaResponse.de(partida);
     }

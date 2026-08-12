@@ -51,6 +51,12 @@ O custo aparece em dois pontos. Primeiro, o estado da sessão vive na memória d
 
 A migração planejada para JWT stateless resolve os dois pontos de uma vez: nada de estado no servidor e nenhum header enviado automaticamente pelo navegador, o que torna o CSRF inaplicável. O trade-off que ela traz é o logout, já que um token continua válido até expirar a menos que se mantenha uma lista de revogação.
 
+### Calendário: o fuso é o do clube, não o de quem faz a requisição
+
+O clube funciona em dias e horários fixos (RN06) e fecha em feriados e recessos (RN07). Essas regras são inerentemente locais: "partida na segunda às 19h" significa 19h no horário de Brasília, independentemente de onde o cliente que faz a requisição está.
+
+Por isso o `CalendarioService` converte todo `OffsetDateTime` recebido para `America/Sao_Paulo` antes de comparar com os dias e horários configurados. Sem essa conversão, um cliente enviando a data em UTC faria a validação comparar 22h com 19h e rejeitar um agendamento legítimo — um bug sutil, que só costuma aparecer em produção, quando o fuso do cliente diverge do fuso do servidor.
+
 ## Documentação
 
 - [Levantamento de requisitos](docs/requisitos.md), regras de negócio e casos de uso

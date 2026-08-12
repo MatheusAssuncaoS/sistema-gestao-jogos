@@ -157,6 +157,27 @@ public class Partida {
         this.status = StatusPartida.CANCELADA;
     }
 
+    /**
+     * RN04: ao atingir a capacidade, a partida deixa de aceitar inscrições
+     * diretas. O status é informativo: no Marco 2 ela continuará recebendo
+     * gente na lista de espera.
+     */
+    public void marcarComoLotada() {
+        if (status == StatusPartida.ABERTA) {
+            this.status = StatusPartida.LOTADA;
+        }
+    }
+
+    /**
+     * RN15: um cancelamento que libera vaga devolve a partida ao estado
+     * ABERTA.
+     */
+    public void reabrirSeLotada() {
+        if (status == StatusPartida.LOTADA) {
+            this.status = StatusPartida.ABERTA;
+        }
+    }
+
     public UUID getId() {
         return id;
     }
