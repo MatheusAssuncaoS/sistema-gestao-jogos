@@ -48,6 +48,14 @@ public class AprovacaoJogadorService {
     }
 
     /**
+     * Categorias disponíveis para o formulário de aprovação.
+     */
+    @Transactional(readOnly = true)
+    public List<Categoria> listarCategoriasAtivas() {
+        return categoriaRepository.findByAtivoTrue();
+    }
+
+    /**
      * Cria o perfil de jogador, atribui o papel JOGADOR e ativa a conta.
      * A partir daqui o associado consegue efetivamente usar o sistema.
      */
@@ -90,6 +98,23 @@ public class AprovacaoJogadorService {
         );
 
         return jogadorRepository.save(jogador);
+    }
+
+    /**
+     * Recusa um cadastro pendente. Diferente da aprovação, não cria perfil
+     * de jogador nem exige categoria: só marca o usuário como RECUSADO.
+     */
+    @Transactional
+    public Usuario recusar(UUID usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado."));
+
+        if (usuario.getStatus() != StatusUsuario.PENDENTE) {
+            throw new RegraNegocioException("Apenas cadastros pendentes podem ser recusados.");
+        }
+
+        usuario.recusar();
+        return usuarioRepository.save(usuario);
     }
 
     private String normalizar(String texto) {
