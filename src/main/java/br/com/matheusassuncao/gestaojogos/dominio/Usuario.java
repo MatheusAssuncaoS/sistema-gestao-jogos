@@ -95,6 +95,11 @@ public class Usuario {
         this.atualizadoEm = OffsetDateTime.now();
     }
 
+    public void recusar() {
+        this.status = StatusUsuario.RECUSADO;
+        this.atualizadoEm = OffsetDateTime.now();
+    }
+
     public void adicionarPapel(Papel papel) {
         this.papeis.add(papel);
         this.atualizadoEm = OffsetDateTime.now();

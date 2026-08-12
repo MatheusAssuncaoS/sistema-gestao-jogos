@@ -24,6 +24,7 @@ import br.com.matheusassuncao.gestaojogos.repositorio.TokenRecuperacaoSenhaRepos
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -236,6 +237,69 @@ class AdminJogadorControllerTest extends IntegracaoTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos.categoriaId").exists());
+    }
+
+    @Test
+    @DisplayName("Recusar marca o usuário como RECUSADO e some da listagem de pendentes")
+    void recusarMarcaUsuarioComoRecusado() throws Exception {
+        criarAdministrador();
+        Usuario pendente = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", pendente.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RECUSADO"));
+
+        mockMvc.perform(get("/api/admin/jogadores/pendentes").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        assertThat(jogadorRepository.findByUsuarioId(pendente.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Recusar duas vezes o mesmo cadastro devolve 409")
+    void recusarCadastroJaDecidido() throws Exception {
+        criarAdministrador();
+        Usuario pendente = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", pendente.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", pendente.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Recusar usuário inexistente devolve 404")
+    void recusarUsuarioInexistente() throws Exception {
+        criarAdministrador();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/recusar", UUID.randomUUID())
+                        .session(sessaoAdmin))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Categorias ativas ficam disponíveis para o formulário de aprovação")
+    void listagemDeCategorias() throws Exception {
+        criarAdministrador();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(get("/api/admin/jogadores/categorias").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[*].nome",
+                        containsInAnyOrder("Série A", "Série B", "Série C")));
     }
 
     @Test

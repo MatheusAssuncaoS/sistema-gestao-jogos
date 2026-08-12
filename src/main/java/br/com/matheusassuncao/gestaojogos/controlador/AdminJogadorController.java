@@ -1,9 +1,12 @@
 package br.com.matheusassuncao.gestaojogos.controlador;
 
 import br.com.matheusassuncao.gestaojogos.dominio.Jogador;
+import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
 import br.com.matheusassuncao.gestaojogos.dto.AprovarJogadorRequest;
 import br.com.matheusassuncao.gestaojogos.dto.CadastroPendenteResponse;
+import br.com.matheusassuncao.gestaojogos.dto.CategoriaResponse;
 import br.com.matheusassuncao.gestaojogos.dto.JogadorResponse;
+import br.com.matheusassuncao.gestaojogos.dto.UsuarioResumoResponse;
 import br.com.matheusassuncao.gestaojogos.servico.AprovacaoJogadorService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,6 +44,20 @@ public class AdminJogadorController {
         return aprovacaoJogadorService.listarPendentes().stream()
                 .map(CadastroPendenteResponse::de)
                 .toList();
+    }
+
+    @GetMapping("/categorias")
+    public List<CategoriaResponse> categorias() {
+        return aprovacaoJogadorService.listarCategoriasAtivas().stream()
+                .map(CategoriaResponse::de)
+                .toList();
+    }
+
+    @PostMapping("/{usuarioId}/recusar")
+    public UsuarioResumoResponse recusar(@PathVariable UUID usuarioId) {
+        Usuario usuario = aprovacaoJogadorService.recusar(usuarioId);
+
+        return UsuarioResumoResponse.de(usuario);
     }
 
     @PostMapping("/{usuarioId}/aprovar")
