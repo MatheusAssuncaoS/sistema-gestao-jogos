@@ -8,10 +8,13 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 
 @Configuration
 @EnableMethodSecurity
@@ -20,6 +23,22 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * Rastreia as sessões ativas de cada usuário, para que uma redefinição
+     * de senha pelo administrador consiga encerrá-las (ver JogadorAtivoService).
+     * HttpSessionEventPublisher é o que mantém o registro sincronizado
+     * quando uma sessão expira ou é invalidada.
+     */
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+
+    @Bean
+    public HttpSessionEventPublisher httpSessionEventPublisher() {
+        return new HttpSessionEventPublisher();
     }
 
     /**
@@ -48,9 +67,19 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // sessão criada apenas quando há login efetivo
+                // sessão criada apenas quando há login efetivo. maximumSessions(-1)
+                // não impõe teto de sessões simultâneas, só registra cada uma no
+                // sessionRegistry para poderem ser encerradas sob demanda. Sem o
+                // expiredSessionStrategy, uma sessão encerrada responde 200 com uma
+                // mensagem em texto puro (comportamento padrão do Spring Security),
+                // inconsistente com o resto da API — aqui vira 401, como qualquer
+                // outra falta de autenticação.
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .maximumSessions(-1)
+                        .sessionRegistry(sessionRegistry())
+                        .expiredSessionStrategy(evento ->
+                                evento.getResponse().sendError(HttpStatus.UNAUTHORIZED.value()))
                 )
 
                 // API REST responde 401 em vez de redirecionar para tela de login

@@ -16,7 +16,8 @@ public record UsuarioResponse(
         String nome,
         String email,
         String status,
-        Set<String> papeis
+        Set<String> papeis,
+        boolean senhaProvisoria
 ) {
 
     public static UsuarioResponse de(Usuario usuario) {
@@ -27,7 +28,8 @@ public record UsuarioResponse(
                 usuario.getStatus().name(),
                 usuario.getPapeis().stream()
                         .map(Papel::getNome)
-                        .collect(Collectors.toSet())
+                        .collect(Collectors.toSet()),
+                usuario.isSenhaProvisoria()
         );
     }
 }

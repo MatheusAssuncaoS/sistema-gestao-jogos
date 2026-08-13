@@ -100,6 +100,17 @@ public class TratadorDeErros {
         return problema;
     }
 
+    @ExceptionHandler(SenhaAtualInvalidaException.class)
+    public ProblemDetail tratarSenhaAtualInvalida(SenhaAtualInvalidaException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.UNAUTHORIZED,
+                excecao.getMessage()
+        );
+        problema.setTitle("Senha atual inválida");
+
+        return problema;
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail tratarAcessoNegado(AccessDeniedException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(

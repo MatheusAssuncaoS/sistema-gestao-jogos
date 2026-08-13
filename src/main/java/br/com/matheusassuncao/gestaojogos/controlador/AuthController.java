@@ -3,8 +3,10 @@ package br.com.matheusassuncao.gestaojogos.controlador;
 import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
 import br.com.matheusassuncao.gestaojogos.dto.CadastroRequest;
 import br.com.matheusassuncao.gestaojogos.dto.LoginRequest;
+import br.com.matheusassuncao.gestaojogos.dto.TrocarSenhaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.UsuarioResponse;
 import br.com.matheusassuncao.gestaojogos.servico.AuthService;
+import br.com.matheusassuncao.gestaojogos.servico.TrocaSenhaService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final TrocaSenhaService trocaSenhaService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, TrocaSenhaService trocaSenhaService) {
         this.authService = authService;
+        this.trocaSenhaService = trocaSenhaService;
     }
 
     /**
@@ -65,5 +70,17 @@ public class AuthController {
     @GetMapping("/eu")
     public UsuarioResponse eu(@AuthenticationPrincipal UserDetails autenticado) {
         return UsuarioResponse.de(authService.buscarPorEmail(autenticado.getUsername()));
+    }
+
+    /**
+     * Troca de senha pelo próprio usuário autenticado, exigindo a senha
+     * atual. É o destino da tela de troca obrigatória quando a senha é
+     * provisória.
+     */
+    @PostMapping("/trocar-senha")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void trocarSenha(@RequestBody @Valid TrocarSenhaRequest request,
+                            @AuthenticationPrincipal UserDetails autenticado) {
+        trocaSenhaService.trocar(autenticado.getUsername(), request.senhaAtual(), request.novaSenha());
     }
 }

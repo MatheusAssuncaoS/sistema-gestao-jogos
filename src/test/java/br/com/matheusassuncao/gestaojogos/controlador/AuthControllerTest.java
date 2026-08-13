@@ -190,6 +190,62 @@ class AuthControllerTest extends IntegracaoTest {
     }
 
     @Test
+    @DisplayName("Login e /eu trazem senhaProvisoria no corpo")
+    void loginTrazSenhaProvisoria() throws Exception {
+        criarUsuario("matheus@teste.com");
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "email": "matheus@teste.com", "senha": "%s" }
+                                """.formatted(SENHA_VALIDA)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.senhaProvisoria").value(false));
+    }
+
+    @Test
+    @DisplayName("Trocar senha com a senha atual errada devolve 401")
+    void trocarSenhaComSenhaAtualErrada() throws Exception {
+        criarUsuario("matheus@teste.com");
+
+        MockHttpSession sessao = autenticarEObterSessao("matheus@teste.com");
+
+        mockMvc.perform(post("/api/auth/trocar-senha")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "senhaAtual": "senha-errada", "novaSenha": "novaSenha123" }
+                                """))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Trocar senha com dados corretos devolve 204 e limpa a flag de senha provisória")
+    void trocarSenhaComDadosCorretos() throws Exception {
+        Usuario usuario = new Usuario("Matheus", "matheus@teste.com", passwordEncoder.encode(SENHA_VALIDA));
+        usuario.redefinirSenha(passwordEncoder.encode(SENHA_VALIDA), true);
+        usuarioRepository.save(usuario);
+
+        MockHttpSession sessao = autenticarEObterSessao("matheus@teste.com");
+
+        mockMvc.perform(get("/api/auth/eu").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.senhaProvisoria").value(true));
+
+        mockMvc.perform(post("/api/auth/trocar-senha")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "senhaAtual": "%s", "novaSenha": "novaSenha123" }
+                                """.formatted(SENHA_VALIDA)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/auth/eu").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.senhaProvisoria").value(false));
+    }
+
+    @Test
     @DisplayName("UC04: atualização de dados altera o nome do usuário autenticado")
     void atualizarDados() throws Exception {
         criarUsuario("matheus@teste.com");
