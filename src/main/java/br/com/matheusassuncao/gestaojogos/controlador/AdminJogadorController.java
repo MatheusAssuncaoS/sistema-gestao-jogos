@@ -84,9 +84,7 @@ public class AdminJogadorController {
 
     @GetMapping("/ativos")
     public List<JogadorResponse> listarAtivos(@RequestParam(defaultValue = "") String busca) {
-        return jogadorAtivoService.listarAtivos(busca).stream()
-                .map(JogadorResponse::de)
-                .toList();
+        return jogadorAtivoService.listarAtivos(busca);
     }
 
     @PostMapping("/{usuarioId}/redefinir-senha")

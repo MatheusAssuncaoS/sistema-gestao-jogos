@@ -100,13 +100,21 @@ public class TratadorDeErros {
         return problema;
     }
 
+    /**
+     * 400, não 401: o usuário está autenticado, só informou a senha atual
+     * errada. Um 401 aqui arriscaria ser tratado como sessão expirada por
+     * quem consome a API. Devolve em "campos" pelo mesmo motivo que a
+     * validação de formulário devolve: para o front apontar o erro no
+     * campo certo.
+     */
     @ExceptionHandler(SenhaAtualInvalidaException.class)
     public ProblemDetail tratarSenhaAtualInvalida(SenhaAtualInvalidaException excecao) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNAUTHORIZED,
+                HttpStatus.BAD_REQUEST,
                 excecao.getMessage()
         );
         problema.setTitle("Senha atual inválida");
+        problema.setProperty("campos", Map.of("senhaAtual", excecao.getMessage()));
 
         return problema;
     }

@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -460,8 +461,17 @@ class AdminJogadorControllerTest extends IntegracaoTest {
                         .content(corpoDeRedefinicao("novaSenha123", true)))
                 .andExpect(status().isNoContent());
 
+        // Confere o corpo, não só o status: sem um expiredSessionStrategy
+        // customizado, o Spring Security responde via sendError(), que
+        // depende da resolução de erro padrão (pode virar HTML) — aqui
+        // precisa ser o mesmo ProblemDetail em JSON do resto da API. O texto
+        // exato (com acento) também importa: escrever a resposta via
+        // getWriter() em vez de getOutputStream() corrompe acentuação por
+        // usar ISO-8859-1 em vez de UTF-8, e um `.exists()` não pegaria isso.
         mockMvc.perform(get("/api/auth/eu").session(sessaoJogador))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.detail").value("Sua sessão expirou. Entre novamente."));
     }
 
     @Test

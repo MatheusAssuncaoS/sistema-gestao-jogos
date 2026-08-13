@@ -1,8 +1,8 @@
 package br.com.matheusassuncao.gestaojogos.servico;
 
-import br.com.matheusassuncao.gestaojogos.dominio.Jogador;
 import br.com.matheusassuncao.gestaojogos.dominio.StatusUsuario;
 import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
+import br.com.matheusassuncao.gestaojogos.dto.JogadorResponse;
 import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
 import br.com.matheusassuncao.gestaojogos.excecao.RegraNegocioException;
 import br.com.matheusassuncao.gestaojogos.repositorio.JogadorRepository;
@@ -40,11 +40,19 @@ public class JogadorAtivoService {
 
     /**
      * Jogadores ativos, com busca opcional por nome ou e-mail.
+     *
+     * O mapeamento para JogadorResponse acontece aqui dentro, não no
+     * controller: usuario e categoria são associações lazy em Jogador, e
+     * mapear fora da transação arrisca LazyInitializationException — ou
+     * passa a depender de lembrar de manter o JOIN FETCH da query
+     * sincronizado com todo campo que o DTO passar a usar no futuro.
      */
     @Transactional(readOnly = true)
-    public List<Jogador> listarAtivos(String busca) {
+    public List<JogadorResponse> listarAtivos(String busca) {
         String termo = busca == null ? "" : busca.trim();
-        return jogadorRepository.buscarPorStatusUsuarioEBusca(StatusUsuario.ATIVO, termo);
+        return jogadorRepository.buscarPorStatusUsuarioEBusca(StatusUsuario.ATIVO, termo).stream()
+                .map(JogadorResponse::de)
+                .toList();
     }
 
     /**

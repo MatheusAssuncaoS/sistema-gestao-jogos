@@ -204,8 +204,27 @@ class AuthControllerTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("Trocar senha com a senha atual errada devolve 401")
+    @DisplayName("Trocar senha com a senha atual errada devolve 400, não 401")
     void trocarSenhaComSenhaAtualErrada() throws Exception {
+        criarUsuario("matheus@teste.com");
+
+        MockHttpSession sessao = autenticarEObterSessao("matheus@teste.com");
+
+        // 400, não 401: o usuário está autenticado, só errou a senha atual.
+        // Um 401 aqui arriscaria ser tratado como sessão expirada pelo front.
+        mockMvc.perform(post("/api/auth/trocar-senha")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "senhaAtual": "senha-errada", "novaSenha": "novaSenha123" }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.senhaAtual").exists());
+    }
+
+    @Test
+    @DisplayName("Trocar para a mesma senha atual devolve 409")
+    void trocarSenhaPelaMesmaSenhaAtual() throws Exception {
         criarUsuario("matheus@teste.com");
 
         MockHttpSession sessao = autenticarEObterSessao("matheus@teste.com");
@@ -214,9 +233,9 @@ class AuthControllerTest extends IntegracaoTest {
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                { "senhaAtual": "senha-errada", "novaSenha": "novaSenha123" }
-                                """))
-                .andExpect(status().isUnauthorized());
+                                { "senhaAtual": "%s", "novaSenha": "%s" }
+                                """.formatted(SENHA_VALIDA, SENHA_VALIDA)))
+                .andExpect(status().isConflict());
     }
 
     @Test
