@@ -118,7 +118,14 @@ public class Usuario {
 
     public void marcarSenhaTrocada() {
         this.senhaProvisoria = false;
+        this.atualizadoEm = OffsetDateTime.now();
+    }
 
+    /**
+     * Reabre um cadastro recusado, devolvendo-o para a fila de aprovação.
+     * A decisão de recusa pode ter sido um engano ou ficar desatualizada
+     * quando a pessoa se associa depois, então precisa ser reversível.
+     */
     public void reabrirCadastro() {
         this.status = StatusUsuario.PENDENTE;
         this.atualizadoEm = OffsetDateTime.now();
