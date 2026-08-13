@@ -34,6 +34,9 @@ public class Usuario {
     @Column(name = "atualizado_em", nullable = false)
     private OffsetDateTime atualizadoEm = OffsetDateTime.now();
 
+    @Column(name = "senha_provisoria", nullable = false)
+    private boolean senhaProvisoria = false;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_papel",
@@ -57,6 +60,10 @@ public class Usuario {
 
     public String getSenhaHash() {
         return senhaHash;
+    }
+
+    public boolean isSenhaProvisoria() {
+        return senhaProvisoria;
     }
 
     public StatusUsuario getStatus() {
@@ -100,6 +107,25 @@ public class Usuario {
         this.atualizadoEm = OffsetDateTime.now();
     }
 
+    /**
+     * Redefinição de senha pelo administrador: diferente de alterarSenha(),
+     * marca se a senha é provisória, para o próximo login exigir a troca.
+     */
+    public void redefinirSenha(String senhaHash, boolean exigirTrocaNoProximoLogin) {
+        alterarSenha(senhaHash);
+        this.senhaProvisoria = exigirTrocaNoProximoLogin;
+    }
+
+    public void marcarSenhaTrocada() {
+        this.senhaProvisoria = false;
+        this.atualizadoEm = OffsetDateTime.now();
+    }
+
+    /**
+     * Reabre um cadastro recusado, devolvendo-o para a fila de aprovação.
+     * A decisão de recusa pode ter sido um engano ou ficar desatualizada
+     * quando a pessoa se associa depois, então precisa ser reversível.
+     */
     public void reabrirCadastro() {
         this.status = StatusUsuario.PENDENTE;
         this.atualizadoEm = OffsetDateTime.now();

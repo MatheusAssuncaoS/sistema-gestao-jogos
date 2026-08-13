@@ -35,6 +35,11 @@ build/
 # Logs
 *.log
 
+# Editor — backups de resolução de conflito
+*.orig
+*.save
+*.bak
+
 # Sistema operacional
 .DS_Store
 Thumbs.db

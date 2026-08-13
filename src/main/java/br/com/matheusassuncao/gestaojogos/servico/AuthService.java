@@ -11,6 +11,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -23,16 +24,19 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final SessionRegistry sessionRegistry;
 
     private final SecurityContextRepository securityContextRepository =
             new HttpSessionSecurityContextRepository();
 
     public AuthService(UsuarioRepository usuarioRepository,
                        PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager) {
+                       AuthenticationManager authenticationManager,
+                       SessionRegistry sessionRegistry) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
+        this.sessionRegistry = sessionRegistry;
     }
 
     /**
@@ -58,6 +62,11 @@ public class AuthService {
      * Autentica as credenciais e persiste o contexto de segurança na sessão.
      * A partir do Spring Security 6 a gravação na sessão é explícita: sem ela
      * o login "funciona" na requisição atual e some na seguinte.
+     *
+     * O login aqui é manual (não passa pelo filtro padrão do Spring Security),
+     * então o registro da sessão no SessionRegistry também precisa ser manual
+     * — sem isso, o JogadorAtivoService não consegue encerrar sessões ativas
+     * ao redefinir uma senha, porque o registro nunca teria essa sessão.
      */
     @Transactional(readOnly = true)
     public Usuario autenticar(String email,
@@ -73,6 +82,8 @@ public class AuthService {
         contexto.setAuthentication(autenticacao);
         SecurityContextHolder.setContext(contexto);
         securityContextRepository.saveContext(contexto, request, response);
+
+        sessionRegistry.registerNewSession(request.getSession().getId(), autenticacao.getPrincipal());
 
         return buscarPorEmail(autenticacao.getName());
     }

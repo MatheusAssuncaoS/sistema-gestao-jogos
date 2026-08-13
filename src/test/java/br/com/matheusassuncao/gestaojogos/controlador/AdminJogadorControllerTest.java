@@ -1,6 +1,7 @@
 package br.com.matheusassuncao.gestaojogos.controlador;
 
 import br.com.matheusassuncao.gestaojogos.IntegracaoTest;
+import br.com.matheusassuncao.gestaojogos.dominio.Categoria;
 import br.com.matheusassuncao.gestaojogos.dominio.Jogador;
 import br.com.matheusassuncao.gestaojogos.dominio.SituacaoAssociativa;
 import br.com.matheusassuncao.gestaojogos.dominio.StatusUsuario;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -427,6 +429,252 @@ class AdminJogadorControllerTest extends IntegracaoTest {
                 .hasSize(3)
                 .extracting("nome")
                 .containsExactlyInAnyOrder("Série A", "Série B", "Série C");
+    }
+
+    @Test
+    @DisplayName("Redefinir a senha de um jogador ativo devolve 204 e o login passa a usar a nova senha")
+    void redefinirSenhaDeJogadorAtivo() throws Exception {
+        criarAdministrador();
+        Jogador jogador = criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "email": "%s", "senha": "novaSenha123" }
+                                """.formatted(EMAIL_JOGADOR)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "email": "%s", "senha": "%s" }
+                                """.formatted(EMAIL_JOGADOR, SENHA)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("exigirTrocaNoProximoLogin verdadeiro marca a flag; falso não marca")
+    void redefinirSenhaMarcaOuNaoAFlagDeTroca() throws Exception {
+        criarAdministrador();
+        Jogador comTroca = criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+        Jogador semTroca = criarJogadorAtivo("Maria Souza", "maria@teste.com");
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", comTroca.getUsuario().getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", semTroca.getUsuario().getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("outraSenha123", false)))
+                .andExpect(status().isNoContent());
+
+        assertThat(usuarioRepository.findById(comTroca.getUsuario().getId()).orElseThrow().isSenhaProvisoria())
+                .isTrue();
+        assertThat(usuarioRepository.findById(semTroca.getUsuario().getId()).orElseThrow().isSenhaProvisoria())
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("Redefinir a senha de um cadastro pendente devolve 409")
+    void redefinirSenhaDeCadastroPendenteDevolve409() throws Exception {
+        criarAdministrador();
+        Usuario pendente = criarUsuarioPendente();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", pendente.getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Redefinir a senha de um cadastro recusado devolve 409")
+    void redefinirSenhaDeCadastroRecusadoDevolve409() throws Exception {
+        criarAdministrador();
+        Usuario recusado = criarUsuarioPendente();
+        recusado.recusar();
+        usuarioRepository.save(recusado);
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", recusado.getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Redefinir com senha de 7 caracteres devolve 400")
+    void redefinirComSenhaCurtaDevolve400() throws Exception {
+        criarAdministrador();
+        Jogador jogador = criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("1234567", true)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.novaSenha").exists());
+    }
+
+    @Test
+    @DisplayName("Redefinir senha de id inexistente devolve 404")
+    void redefinirSenhaDeIdInexistenteDevolve404() throws Exception {
+        criarAdministrador();
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", UUID.randomUUID())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("Redefinir senha sem papel de administrador devolve 403")
+    void redefinirSenhaSemPapelDeAdministradorDevolve403() throws Exception {
+        criarAdministrador();
+        Jogador jogador = criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+
+        MockHttpSession sessaoJogador = autenticar(EMAIL_JOGADOR);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
+                        .session(sessaoJogador)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Redefinir a senha encerra a sessão que o jogador já tinha aberta")
+    void redefinirSenhaEncerraSessaoAtiva() throws Exception {
+        criarAdministrador();
+        Jogador jogador = criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+
+        MockHttpSession sessaoJogador = autenticar(EMAIL_JOGADOR);
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                .andExpect(status().isNoContent());
+
+        // Confere o corpo, não só o status: sem um expiredSessionStrategy
+        // customizado, o Spring Security responde via sendError(), que
+        // depende da resolução de erro padrão (pode virar HTML) — aqui
+        // precisa ser o mesmo ProblemDetail em JSON do resto da API. O texto
+        // exato (com acento) também importa: escrever a resposta via
+        // getWriter() em vez de getOutputStream() corrompe acentuação por
+        // usar ISO-8859-1 em vez de UTF-8, e um `.exists()` não pegaria isso.
+        mockMvc.perform(get("/api/auth/eu").session(sessaoJogador))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.detail").value("Sua sessão expirou. Entre novamente."));
+    }
+
+    @Test
+    @DisplayName("Busca por trecho do nome traz o jogador correspondente")
+    void buscaAtivosPorNome() throws Exception {
+        criarAdministrador();
+        criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+        criarJogadorAtivo("Maria Souza", "maria@teste.com");
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(get("/api/admin/jogadores/ativos").param("busca", "joao").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].email").value(EMAIL_JOGADOR));
+    }
+
+    @Test
+    @DisplayName("Busca por trecho do e-mail traz o jogador correspondente")
+    void buscaAtivosPorEmail() throws Exception {
+        criarAdministrador();
+        criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+        criarJogadorAtivo("Maria Souza", "maria@teste.com");
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(get("/api/admin/jogadores/ativos").param("busca", "maria@").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].nome").value("Maria Souza"));
+    }
+
+    @Test
+    @DisplayName("Busca sem correspondência devolve lista vazia")
+    void buscaAtivosSemCorrespondencia() throws Exception {
+        criarAdministrador();
+        criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(get("/api/admin/jogadores/ativos").param("busca", "ninguem").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("Busca vazia devolve todos os ativos, sem pendentes nem recusados")
+    void listagemDeAtivosNaoIncluiPendentesNemRecusados() throws Exception {
+        criarAdministrador();
+        criarJogadorAtivo("Joao Silva", EMAIL_JOGADOR);
+
+        usuarioRepository.save(new Usuario("Pendente Teste", "pendente@teste.com", passwordEncoder.encode(SENHA)));
+
+        Usuario recusado = usuarioRepository.save(
+                new Usuario("Recusado Teste", "recusado@teste.com", passwordEncoder.encode(SENHA)));
+        recusado.recusar();
+        usuarioRepository.save(recusado);
+
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(get("/api/admin/jogadores/ativos").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].email").value(EMAIL_JOGADOR));
+    }
+
+    private Jogador criarJogadorAtivo(String nome, String email) {
+        Usuario usuario = usuarioRepository.save(new Usuario(nome, email, passwordEncoder.encode(SENHA)));
+        usuario.ativar();
+        usuario.adicionarPapel(papelRepository.findByNome("JOGADOR").orElseThrow());
+        usuarioRepository.save(usuario);
+
+        Categoria categoria = categoriaRepository.findById(CATEGORIA_SERIE_B).orElseThrow();
+        Jogador jogador = new Jogador(usuario, null, categoria, SituacaoAssociativa.REGULAR, usuario);
+
+        return jogadorRepository.save(jogador);
+    }
+
+    private String corpoDeRedefinicao(String novaSenha, boolean exigirTroca) {
+        return """
+                {
+                  "novaSenha": "%s",
+                  "exigirTrocaNoProximoLogin": %b
+                }
+                """.formatted(novaSenha, exigirTroca);
     }
 
     private Usuario criarAdministrador() {
