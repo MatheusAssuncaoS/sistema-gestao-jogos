@@ -1,4 +1,4 @@
-package br.com.matheusassuncao.gestaojogos.dominio;
+===package br.com.matheusassuncao.gestaojogos.dominio;
 
 import jakarta.persistence.*;
 
@@ -107,6 +107,7 @@ public class Usuario {
         this.atualizadoEm = OffsetDateTime.now();
     }
 
+<<<<<<< HEAD
     /**
      * Redefinição de senha pelo administrador: diferente de alterarSenha(),
      * marca se a senha é provisória, para o próximo login exigir a troca.
@@ -118,9 +119,10 @@ public class Usuario {
 
     public void marcarSenhaTrocada() {
         this.senhaProvisoria = false;
-
+=======
     public void reabrirCadastro() {
         this.status = StatusUsuario.PENDENTE;
+>>>>>>> origin/main
         this.atualizadoEm = OffsetDateTime.now();
     }
 
