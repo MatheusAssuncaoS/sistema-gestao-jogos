@@ -1,8 +1,11 @@
 package br.com.matheusassuncao.gestaojogos.controlador;
 
+import br.com.matheusassuncao.gestaojogos.dto.CategoriaResponse;
 import br.com.matheusassuncao.gestaojogos.dto.CriarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.EditarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.InscritoResponse;
+import br.com.matheusassuncao.gestaojogos.dto.LocalPartidaResponse;
+import br.com.matheusassuncao.gestaojogos.dto.ModalidadeResponse;
 import br.com.matheusassuncao.gestaojogos.dto.PartidaResponse;
 import br.com.matheusassuncao.gestaojogos.servico.InscricaoService;
 import br.com.matheusassuncao.gestaojogos.servico.PartidaService;
@@ -40,17 +43,44 @@ public class OrganizadorPartidaController {
         this.inscricaoService = inscricaoService;
     }
 
+    /**
+     * Listar, detalhar e consultar inscritos também são permitidos ao
+     * administrador. Ele também pode criar rascunhos, mas editar, abrir e
+     * cancelar continuam exclusivos do organizador. @PreAuthorize no método
+     * sobrescreve o da classe somente nos endpoints indicados.
+     */
     @GetMapping
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
     public List<PartidaResponse> listar() {
         return partidaService.listarFuturas();
     }
 
+    @GetMapping("/modalidades")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
+    public List<ModalidadeResponse> modalidades() {
+        return partidaService.listarModalidadesAtivas();
+    }
+
+    @GetMapping("/locais")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
+    public List<LocalPartidaResponse> locais() {
+        return partidaService.listarLocaisAtivos();
+    }
+
+    @GetMapping("/categorias")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
+    public List<CategoriaResponse> categorias() {
+        return partidaService.listarCategoriasAtivas();
+    }
+
     @GetMapping("/{partidaId}")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
     public PartidaResponse detalhar(@PathVariable UUID partidaId) {
         return partidaService.detalhar(partidaId);
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
     public ResponseEntity<PartidaResponse> criar(@RequestBody @Valid CriarPartidaRequest request,
                                                  @AuthenticationPrincipal UserDetails organizador) {
         return ResponseEntity
@@ -79,6 +109,7 @@ public class OrganizadorPartidaController {
      * UC17: consultar inscrições.
      */
     @GetMapping("/{partidaId}/inscritos")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
     public List<InscritoResponse> inscritos(@PathVariable UUID partidaId) {
         return inscricaoService.listarInscritos(partidaId).stream()
                 .map(InscritoResponse::de)

@@ -29,6 +29,16 @@ public class LocalPartida {
         // exigido pelo JPA
     }
 
+    public LocalPartida(String nome, String descricao) {
+        this.nome = nome.trim();
+        this.descricao = descricao == null || descricao.isBlank() ? null : descricao.trim();
+    }
+
+    public void atualizar(String nome, String descricao) {
+        this.nome = nome.trim();
+        this.descricao = descricao == null || descricao.isBlank() ? null : descricao.trim();
+    }
+
     public UUID getId() {
         return id;
     }

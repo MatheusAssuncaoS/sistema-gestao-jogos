@@ -16,6 +16,12 @@ import java.util.UUID;
 
 public interface PartidaRepository extends JpaRepository<Partida, UUID> {
 
+    boolean existsByModalidade_Id(UUID modalidadeId);
+
+    boolean existsByLocal_Id(UUID localId);
+
+    boolean existsByCategoria_Id(Long categoriaId);
+
     List<Partida> findByStatusInOrderByInicio(Collection<StatusPartida> status);
 
     List<Partida> findByInicioAfterOrderByInicio(OffsetDateTime referencia);

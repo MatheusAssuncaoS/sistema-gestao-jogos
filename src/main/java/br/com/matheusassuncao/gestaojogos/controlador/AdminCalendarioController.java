@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -62,6 +63,13 @@ public class AdminCalendarioController {
         calendarioService.removerDiaDeFuncionamento(diaId);
     }
 
+    @PutMapping("/dias-funcionamento/{diaId}")
+    public DiaFuncionamentoResponse editarDia(@PathVariable UUID diaId,
+                                               @RequestBody @Valid DiaFuncionamentoRequest request) {
+        return DiaFuncionamentoResponse.de(calendarioService.editarDiaDeFuncionamento(
+                diaId, request.diaDaSemana(), request.horario()));
+    }
+
     @GetMapping("/excecoes")
     public List<ExcecaoCalendarioResponse> listarExcecoes() {
         return calendarioService.listarExcecoesVigentes().stream()
@@ -89,5 +97,12 @@ public class AdminCalendarioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removerExcecao(@PathVariable UUID excecaoId) {
         calendarioService.removerExcecao(excecaoId);
+    }
+
+    @PutMapping("/excecoes/{excecaoId}")
+    public ExcecaoCalendarioResponse editarExcecao(@PathVariable UUID excecaoId,
+                                                    @RequestBody @Valid ExcecaoCalendarioRequest request) {
+        return ExcecaoCalendarioResponse.de(calendarioService.editarExcecao(
+                excecaoId, request.descricao(), request.tipo(), request.inicio(), request.fim()));
     }
 }

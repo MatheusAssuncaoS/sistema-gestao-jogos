@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
 import org.springframework.security.access.AccessDeniedException;
@@ -142,6 +143,16 @@ public class TratadorDeErros {
         );
         problema.setTitle("Conflito de edição");
 
+        return problema;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail tratarRegistroEmUso(DataIntegrityViolationException excecao) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                "Este usuário possui histórico ou vínculos com outros registros e não pode ser excluído."
+        );
+        problema.setTitle("Registro em uso");
         return problema;
     }
 }

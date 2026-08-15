@@ -57,6 +57,11 @@ public class DiaFuncionamento {
         this.ativo = false;
     }
 
+    public void atualizar(DayOfWeek diaDaSemana, LocalTime horario) {
+        this.diaDaSemana = diaDaSemana;
+        this.horario = horario;
+    }
+
     public UUID getId() {
         return id;
     }

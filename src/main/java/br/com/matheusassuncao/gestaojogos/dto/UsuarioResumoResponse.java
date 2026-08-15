@@ -16,7 +16,8 @@ public record UsuarioResumoResponse(
         String nome,
         String email,
         String status,
-        Set<String> papeis
+        Set<String> papeis,
+        Long versao
 ) {
 
     public static UsuarioResumoResponse de(Usuario usuario) {
@@ -27,7 +28,8 @@ public record UsuarioResumoResponse(
                 usuario.getStatus().name(),
                 usuario.getPapeis().stream()
                         .map(Papel::getNome)
-                        .collect(Collectors.toSet())
+                        .collect(Collectors.toSet()),
+                usuario.getVersao()
         );
     }
 }

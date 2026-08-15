@@ -29,6 +29,14 @@ public class Modalidade {
         // exigido pelo JPA
     }
 
+    public Modalidade(String nome) {
+        this.nome = nome.trim();
+    }
+
+    public void atualizarNome(String nome) {
+        this.nome = nome.trim();
+    }
+
     public UUID getId() {
         return id;
     }

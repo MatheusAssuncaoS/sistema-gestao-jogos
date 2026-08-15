@@ -37,6 +37,10 @@ public class Usuario {
     @Column(name = "senha_provisoria", nullable = false)
     private boolean senhaProvisoria = false;
 
+    @Version
+    @Column(nullable = false)
+    private Long versao = 0L;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_papel",
@@ -82,6 +86,10 @@ public class Usuario {
         return id;
     }
 
+    public Long getVersao() {
+        return versao;
+    }
+
     /**
      * A regra de "o que pode mudar" pertence à entidade: nome e e-mail sim,
      * senha e status não passam por aqui.
@@ -99,6 +107,14 @@ public class Usuario {
 
     public void ativar() {
         this.status = StatusUsuario.ATIVO;
+        this.atualizadoEm = OffsetDateTime.now();
+    }
+
+    public void alterarStatus(StatusUsuario novoStatus) {
+        if (novoStatus == StatusUsuario.PENDENTE || novoStatus == StatusUsuario.RECUSADO) {
+            throw new IllegalArgumentException("Use o fluxo de cadastros para estados pendente ou recusado.");
+        }
+        this.status = novoStatus;
         this.atualizadoEm = OffsetDateTime.now();
     }
 
