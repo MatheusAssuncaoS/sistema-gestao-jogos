@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AuthControllerTest extends IntegracaoTest {
 
-    private static final String SENHA_VALIDA = "senha12345";
+    private static final String SENHA_VALIDA = "Senha12345!";
 
     @Autowired
     private MockMvc mockMvc;
@@ -216,7 +216,7 @@ class AuthControllerTest extends IntegracaoTest {
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                { "senhaAtual": "senha-errada", "novaSenha": "novaSenha123" }
+                                { "senhaAtual": "senha-errada", "novaSenha": "NovaSenha123!" }
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos.senhaAtual").exists());
@@ -255,7 +255,7 @@ class AuthControllerTest extends IntegracaoTest {
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                { "senhaAtual": "%s", "novaSenha": "novaSenha123" }
+                                { "senhaAtual": "%s", "novaSenha": "NovaSenha123!" }
                                 """.formatted(SENHA_VALIDA)))
                 .andExpect(status().isNoContent());
 

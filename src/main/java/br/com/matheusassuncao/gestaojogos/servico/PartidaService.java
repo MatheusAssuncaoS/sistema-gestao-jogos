@@ -6,8 +6,11 @@ import br.com.matheusassuncao.gestaojogos.dominio.Modalidade;
 import br.com.matheusassuncao.gestaojogos.dominio.Partida;
 import br.com.matheusassuncao.gestaojogos.dominio.StatusPartida;
 import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
+import br.com.matheusassuncao.gestaojogos.dto.CategoriaResponse;
 import br.com.matheusassuncao.gestaojogos.dto.CriarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.EditarPartidaRequest;
+import br.com.matheusassuncao.gestaojogos.dto.LocalPartidaResponse;
+import br.com.matheusassuncao.gestaojogos.dto.ModalidadeResponse;
 import br.com.matheusassuncao.gestaojogos.dto.PartidaResponse;
 import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
 import br.com.matheusassuncao.gestaojogos.excecao.RegraNegocioException;
@@ -63,6 +66,33 @@ public class PartidaService {
         return partidaRepository.findByInicioAfterOrderByInicio(OffsetDateTime.now())
                 .stream()
                 .map(PartidaResponse::de)
+                .toList();
+    }
+
+    /**
+     * Dados de referência para o formulário de criação. Mapear para DTO
+     * aqui dentro, e não no controller, mantém o mesmo cuidado já adotado
+     * em JogadorAtivoService: nenhuma dessas entidades tem associação lazy
+     * hoje, mas se ganhar uma no futuro o mapeamento continua seguro.
+     */
+    @Transactional(readOnly = true)
+    public List<ModalidadeResponse> listarModalidadesAtivas() {
+        return modalidadeRepository.findByAtivoTrue().stream()
+                .map(ModalidadeResponse::de)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<LocalPartidaResponse> listarLocaisAtivos() {
+        return localPartidaRepository.findByAtivoTrue().stream()
+                .map(LocalPartidaResponse::de)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CategoriaResponse> listarCategoriasAtivas() {
+        return categoriaRepository.findByAtivoTrue().stream()
+                .map(CategoriaResponse::de)
                 .toList();
     }
 

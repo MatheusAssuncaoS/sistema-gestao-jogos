@@ -13,6 +13,8 @@ import java.util.UUID;
 
 public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
 
+    boolean existsByJogadorId(UUID jogadorId);
+
     /**
      * Contagem que decide se ainda há vaga (RN02). Executada sempre dentro do
      * lock pessimista da partida.

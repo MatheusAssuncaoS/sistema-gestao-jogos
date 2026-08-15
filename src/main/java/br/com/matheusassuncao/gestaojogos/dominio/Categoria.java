@@ -2,6 +2,8 @@ package br.com.matheusassuncao.gestaojogos.dominio;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -10,6 +12,7 @@ import jakarta.persistence.Table;
 public class Categoria {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, length = 50, unique = true)
@@ -26,6 +29,16 @@ public class Categoria {
 
     protected Categoria() {
         // exigido pelo JPA
+    }
+
+    public Categoria(String nome, Integer peso) {
+        this.nome = nome.trim();
+        this.peso = peso;
+    }
+
+    public void atualizar(String nome, Integer peso) {
+        this.nome = nome.trim();
+        this.peso = peso;
     }
 
     public Long getId() {

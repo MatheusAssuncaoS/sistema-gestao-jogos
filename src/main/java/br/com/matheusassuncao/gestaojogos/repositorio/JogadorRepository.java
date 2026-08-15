@@ -16,6 +16,8 @@ public interface JogadorRepository extends JpaRepository<Jogador, UUID> {
 
     boolean existsByUsuarioId(UUID usuarioId);
 
+    boolean existsByCategoria_Id(Long categoriaId);
+
     /**
      * Jogadores cujo usuário está no status informado, com busca opcional
      * por trecho do nome ou do e-mail (busca vazia devolve todos).

@@ -43,6 +43,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     private static final String SENHA = "senha12345";
     private static final String EMAIL_ORGANIZADOR = "organizador@clube.local";
     private static final String EMAIL_JOGADOR = "jogador@teste.com";
+    private static final String EMAIL_ADMIN = "admin.teste@clube.local";
     private static final ZoneId FUSO_DO_CLUBE = ZoneId.of("America/Sao_Paulo");
 
     @Autowired
@@ -351,6 +352,94 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     }
 
     @Test
+    @DisplayName("Lista as modalidades ativas, dado de referência do formulário de criação")
+    void listarModalidades() throws Exception {
+        criarOrganizador();
+        MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
+
+        mockMvc.perform(get("/api/organizador/partidas/modalidades").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].nome", org.hamcrest.Matchers.hasItem("Futebol")));
+    }
+
+    @Test
+    @DisplayName("Lista os locais ativos, dado de referência do formulário de criação")
+    void listarLocais() throws Exception {
+        criarOrganizador();
+        MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
+
+        mockMvc.perform(get("/api/organizador/partidas/locais").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].nome", org.hamcrest.Matchers.hasItem("Campo principal")));
+    }
+
+    @Test
+    @DisplayName("Lista as categorias ativas, dado de referência do formulário de criação")
+    void listarCategoriasDeReferencia() throws Exception {
+        criarOrganizador();
+        MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
+
+        mockMvc.perform(get("/api/organizador/partidas/categorias").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3));
+    }
+
+    @Test
+    @DisplayName("Jogador não acessa os dados de referência de partidas: 403")
+    void jogadorNaoAcessaReferenciasDePartida() throws Exception {
+        criarJogador();
+        MockHttpSession sessao = autenticar(EMAIL_JOGADOR);
+
+        mockMvc.perform(get("/api/organizador/partidas/modalidades").session(sessao))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Administrador acompanha as partidas: lista, detalha e vê inscritos")
+    void administradorVePartidas() throws Exception {
+        criarOrganizador();
+        UUID partidaId = criarPartidaViaApi(autenticar(EMAIL_ORGANIZADOR));
+
+        criarAdministrador();
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(get("/api/organizador/partidas").session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        mockMvc.perform(get("/api/organizador/partidas/{id}", partidaId).session(sessaoAdmin))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/organizador/partidas/{id}/inscritos", partidaId).session(sessaoAdmin))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("Administrador cria partidas, mas abrir e cancelar continuam restritos ao organizador")
+    void administradorCriaPartida() throws Exception {
+        criarOrganizador();
+        UUID partidaId = criarPartidaViaApi(autenticar(EMAIL_ORGANIZADOR));
+
+        criarAdministrador();
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessaoAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(proximaDataValida())))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/organizador/partidas/{id}/abrir", partidaId).session(sessaoAdmin))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/organizador/partidas/{id}/cancelar", partidaId).session(sessaoAdmin))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/organizador/partidas/modalidades").session(sessaoAdmin))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("Jogador não gerencia partidas: 403")
     void jogadorNaoGerenciaPartidas() throws Exception {
         criarJogador();
@@ -437,6 +526,19 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
                   "versao": %d
                 }
                 """.formatted(localId, inicio, versao);
+    }
+
+    private Usuario criarAdministrador() {
+        Usuario admin = new Usuario(
+                "Administrador de Teste",
+                EMAIL_ADMIN,
+                passwordEncoder.encode(SENHA)
+        );
+
+        admin.ativar();
+        admin.adicionarPapel(papelRepository.findByNome("ADMINISTRADOR").orElseThrow());
+
+        return usuarioRepository.save(admin);
     }
 
     private Usuario criarOrganizador() {

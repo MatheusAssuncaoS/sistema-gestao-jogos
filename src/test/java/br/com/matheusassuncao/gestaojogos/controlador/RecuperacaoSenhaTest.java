@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RecuperacaoSenhaTest extends IntegracaoTest {
 
     private static final String SENHA_ORIGINAL = "senha12345";
-    private static final String SENHA_NOVA = "novasenha123";
+    private static final String SENHA_NOVA = "NovaSenha123!";
     private static final String EMAIL = "matheus@teste.com";
 
     @Autowired
@@ -119,7 +119,7 @@ class RecuperacaoSenhaTest extends IntegracaoTest {
         String token = tokenRepository.findAll().getFirst().getToken();
 
         redefinir(token, SENHA_NOVA).andExpect(status().isNoContent());
-        redefinir(token, "outrasenha123").andExpect(status().isConflict());
+        redefinir(token, "OutraSenha123!").andExpect(status().isConflict());
     }
 
     @Test

@@ -19,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -176,6 +178,67 @@ class AdminUsuarioControllerTest extends IntegracaoTest {
     void exigeAutenticacao() throws Exception {
         mockMvc.perform(get("/api/admin/usuarios"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Administrador edita dados de outro usuário")
+    void editarUsuario() throws Exception {
+        criarAdministrador();
+        Usuario usuario = criarUsuarioComum();
+
+        mockMvc.perform(put("/api/admin/usuarios/{id}", usuario.getId())
+                        .session(autenticar(EMAIL_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "nome": "Maria Atualizada", "email": "maria.nova@teste.com", "versao": %d }
+                                """.formatted(usuario.getVersao())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Maria Atualizada"))
+                .andExpect(jsonPath("$.versao").value(1));
+    }
+
+    @Test
+    @DisplayName("Administrador bloqueia e reativa usuário")
+    void alterarStatusUsuario() throws Exception {
+        criarAdministrador();
+        Usuario usuario = criarUsuarioComum();
+        MockHttpSession sessao = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(patch("/api/admin/usuarios/{id}/status", usuario.getId())
+                        .session(sessao).contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"status\": \"BLOQUEADO\", \"versao\": %d }".formatted(usuario.getVersao())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BLOQUEADO"));
+
+        mockMvc.perform(patch("/api/admin/usuarios/{id}/status", usuario.getId())
+                        .session(sessao).contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"status\": \"ATIVO\", \"versao\": 0 }"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Administrador exclui cadastro sem histórico")
+    void excluirUsuario() throws Exception {
+        criarAdministrador();
+        Usuario usuario = criarUsuarioComum();
+
+        mockMvc.perform(delete("/api/admin/usuarios/{id}", usuario.getId())
+                        .param("versao", usuario.getVersao().toString())
+                        .session(autenticar(EMAIL_ADMIN)))
+                .andExpect(status().isNoContent());
+
+        assertThat(usuarioRepository.existsById(usuario.getId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("Administrador não exclui a própria conta")
+    void naoExcluirPropriaConta() throws Exception {
+        Usuario admin = criarAdministrador();
+
+        mockMvc.perform(delete("/api/admin/usuarios/{id}", admin.getId())
+                        .param("versao", admin.getVersao().toString())
+                        .session(autenticar(EMAIL_ADMIN)))
+                .andExpect(status().isConflict());
     }
 
     private Usuario criarAdministrador() {

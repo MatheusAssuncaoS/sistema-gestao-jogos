@@ -58,6 +58,13 @@ public class ExcecaoCalendario {
         return !data.isBefore(inicio) && !data.isAfter(fim);
     }
 
+    public void atualizar(String descricao, TipoExcecao tipo, LocalDate inicio, LocalDate fim) {
+        this.descricao = descricao.trim();
+        this.tipo = tipo;
+        this.inicio = inicio;
+        this.fim = fim;
+    }
+
     public UUID getId() {
         return id;
     }

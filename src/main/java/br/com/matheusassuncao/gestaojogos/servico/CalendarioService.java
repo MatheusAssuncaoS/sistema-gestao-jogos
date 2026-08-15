@@ -138,6 +138,17 @@ public class CalendarioService {
         dia.desativar();
     }
 
+    @Transactional
+    public DiaFuncionamento editarDiaDeFuncionamento(UUID diaId, DayOfWeek diaDaSemana, LocalTime horario) {
+        DiaFuncionamento dia = diaFuncionamentoRepository.findById(diaId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Dia de funcionamento não encontrado."));
+        diaFuncionamentoRepository.findByDiaDaSemanaAndHorario(diaDaSemana, horario)
+                .filter(existente -> !existente.getId().equals(diaId))
+                .ifPresent(item -> { throw new RegraNegocioException("Esse dia e horário já estão cadastrados."); });
+        dia.atualizar(diaDaSemana, horario);
+        return dia;
+    }
+
     @Transactional(readOnly = true)
     public List<ExcecaoCalendario> listarExcecoesVigentes() {
         return excecaoCalendarioRepository
@@ -169,5 +180,17 @@ public class CalendarioService {
                 ));
 
         excecaoCalendarioRepository.delete(excecao);
+    }
+
+    @Transactional
+    public ExcecaoCalendario editarExcecao(UUID excecaoId, String descricao, TipoExcecao tipo,
+                                           LocalDate inicio, LocalDate fim) {
+        if (fim.isBefore(inicio)) {
+            throw new RegraNegocioException("A data final deve ser igual ou posterior à inicial.");
+        }
+        ExcecaoCalendario excecao = excecaoCalendarioRepository.findById(excecaoId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Exceção de calendário não encontrada."));
+        excecao.atualizar(descricao, tipo, inicio, fim);
+        return excecao;
     }
 }

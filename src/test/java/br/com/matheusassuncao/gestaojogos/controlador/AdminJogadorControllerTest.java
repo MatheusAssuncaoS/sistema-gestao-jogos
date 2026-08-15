@@ -442,13 +442,13 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                { "email": "%s", "senha": "novaSenha123" }
+                                { "email": "%s", "senha": "NovaSenha123!" }
                                 """.formatted(EMAIL_JOGADOR)))
                 .andExpect(status().isOk());
 
@@ -472,13 +472,13 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", comTroca.getUsuario().getId())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isNoContent());
 
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", semTroca.getUsuario().getId())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("outraSenha123", false)))
+                        .content(corpoDeRedefinicao("OutraSenha123!", false)))
                 .andExpect(status().isNoContent());
 
         assertThat(usuarioRepository.findById(comTroca.getUsuario().getId()).orElseThrow().isSenhaProvisoria())
@@ -498,7 +498,7 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", pendente.getId())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isConflict());
     }
 
@@ -515,7 +515,7 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", recusado.getId())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isConflict());
     }
 
@@ -545,7 +545,7 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", UUID.randomUUID())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isNotFound());
     }
 
@@ -560,7 +560,7 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
                         .session(sessaoJogador)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isForbidden());
     }
 
@@ -576,7 +576,7 @@ class AdminJogadorControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/admin/jogadores/{id}/redefinir-senha", jogador.getUsuario().getId())
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeRedefinicao("novaSenha123", true)))
+                        .content(corpoDeRedefinicao("NovaSenha123!", true)))
                 .andExpect(status().isNoContent());
 
         // Confere o corpo, não só o status: sem um expiredSessionStrategy
