@@ -1,0 +1,3 @@
+INSERT INTO papel (nome)
+VALUES ('ARBITRO')
+ON CONFLICT (nome) DO NOTHING;

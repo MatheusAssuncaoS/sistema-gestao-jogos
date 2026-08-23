@@ -165,8 +165,8 @@ class InscricaoControllerTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("RN04: partida lotada recusa novas inscrições")
-    void partidaLotada() throws Exception {
+    @DisplayName("RN12: partida lotada recebe jogador na lista de espera e promove após cancelamento")
+    void listaDeEsperaEPromocao() throws Exception {
         UUID partidaId = criarPartidaAberta(1);
 
         criarJogadorRegular("primeiro@teste.com");
@@ -179,13 +179,31 @@ class InscricaoControllerTest extends IntegracaoTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/partidas/{id}/inscricao", partidaId).session(segundo))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail")
-                        .value(org.hamcrest.Matchers.containsString("limite")));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("LISTA_ESPERA"));
 
         Partida partida = partidaRepository.findById(partidaId).orElseThrow();
 
         assertThat(partida.getStatus()).isEqualTo(StatusPartida.LOTADA);
+        assertThat(inscricaoRepository.findAll())
+                .extracting(inscricao -> inscricao.getStatus())
+                .containsExactlyInAnyOrder(
+                        StatusInscricao.CONFIRMADA,
+                        StatusInscricao.LISTA_ESPERA
+                );
+
+        mockMvc.perform(delete("/api/partidas/{id}/inscricao", partidaId).session(primeiro))
+                .andExpect(status().isNoContent());
+
+        assertThat(inscricaoRepository.findAll())
+                .extracting(inscricao -> inscricao.getStatus())
+                .containsExactlyInAnyOrder(
+                        StatusInscricao.CANCELADA,
+                        StatusInscricao.CONFIRMADA
+                );
+        assertThat(partidaRepository.findById(partidaId).orElseThrow().getStatus())
+                .as("a promoção mantém a partida lotada")
+                .isEqualTo(StatusPartida.LOTADA);
     }
 
     @Test
@@ -305,6 +323,12 @@ class InscricaoControllerTest extends IntegracaoTest {
         mockMvc.perform(get("/api/partidas/minhas-inscricoes").session(sessao))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("CONFIRMADA"));
+
+        mockMvc.perform(get("/api/partidas/{id}/participantes", partidaId).session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].nome").value("Usuário " + EMAIL_JOGADOR))
                 .andExpect(jsonPath("$[0].status").value("CONFIRMADA"));
     }
 

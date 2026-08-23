@@ -103,12 +103,10 @@ class InscricaoConcorrenciaTest extends IntegracaoTest {
         Resultado resultado = executarEmParalelo(partidaId, List.of(primeiro, segundo));
 
         assertThat(resultado.sucessos())
-                .as("exatamente uma das duas inscrições deve ser confirmada")
-                .isEqualTo(1);
+                .as("uma inscrição confirma e a outra entra na lista de espera")
+                .isEqualTo(2);
 
-        assertThat(resultado.falhas())
-                .as("a outra deve ser recusada por falta de vaga")
-                .isEqualTo(1);
+        assertThat(resultado.falhas()).isZero();
 
         assertThat(inscricaoRepository.contarConfirmados(partidaId))
                 .as("a capacidade nunca pode ser ultrapassada")
@@ -128,8 +126,10 @@ class InscricaoConcorrenciaTest extends IntegracaoTest {
 
         Resultado resultado = executarEmParalelo(partidaId, jogadores);
 
-        assertThat(resultado.sucessos()).isEqualTo(16);
-        assertThat(resultado.falhas()).isEqualTo(4);
+        assertThat(resultado.sucessos())
+                .as("as quatro pessoas sem vaga entram na lista de espera")
+                .isEqualTo(20);
+        assertThat(resultado.falhas()).isZero();
 
         assertThat(inscricaoRepository.contarConfirmados(partidaId))
                 .as("mesmo com vinte disputantes, a partida fecha com dezesseis")

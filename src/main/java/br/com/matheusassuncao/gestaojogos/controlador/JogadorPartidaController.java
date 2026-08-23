@@ -1,6 +1,7 @@
 package br.com.matheusassuncao.gestaojogos.controlador;
 
 import br.com.matheusassuncao.gestaojogos.dto.InscricaoResponse;
+import br.com.matheusassuncao.gestaojogos.dto.InscritoResponse;
 import br.com.matheusassuncao.gestaojogos.dto.PartidaResponse;
 import br.com.matheusassuncao.gestaojogos.servico.InscricaoService;
 import br.com.matheusassuncao.gestaojogos.servico.PartidaService;
@@ -53,8 +54,10 @@ public class JogadorPartidaController {
             @PathVariable UUID partidaId,
             @AuthenticationPrincipal UserDetails jogador) {
 
+        var inscricao = inscricaoService.inscrever(partidaId, jogador.getUsername());
         InscricaoResponse resposta = InscricaoResponse.de(
-                inscricaoService.inscrever(partidaId, jogador.getUsername())
+                inscricao,
+                inscricaoService.contarConfirmados(partidaId)
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(resposta);
@@ -77,7 +80,21 @@ public class JogadorPartidaController {
     @GetMapping("/minhas-inscricoes")
     public List<InscricaoResponse> minhasInscricoes(@AuthenticationPrincipal UserDetails jogador) {
         return inscricaoService.listarMinhasInscricoes(jogador.getUsername()).stream()
-                .map(InscricaoResponse::de)
+                .map(inscricao -> InscricaoResponse.de(
+                        inscricao,
+                        inscricaoService.contarConfirmados(inscricao.getPartida().getId())
+                ))
+                .toList();
+    }
+
+    @GetMapping("/{partidaId}/participantes")
+    public List<InscritoResponse> participantes(
+            @PathVariable UUID partidaId,
+            @AuthenticationPrincipal UserDetails jogador) {
+        return inscricaoService
+                .listarParticipantesParaJogador(partidaId, jogador.getUsername())
+                .stream()
+                .map(InscritoResponse::de)
                 .toList();
     }
 }

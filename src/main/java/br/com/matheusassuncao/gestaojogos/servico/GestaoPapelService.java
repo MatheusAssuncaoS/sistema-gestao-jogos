@@ -27,6 +27,7 @@ public class GestaoPapelService {
     private static final Logger log = LoggerFactory.getLogger(GestaoPapelService.class);
 
     private static final String PAPEL_ORGANIZADOR = "ORGANIZADOR";
+    private static final String PAPEL_ARBITRO = "ARBITRO";
 
     private final UsuarioRepository usuarioRepository;
     private final PapelRepository papelRepository;
@@ -92,6 +93,30 @@ public class GestaoPapelService {
         return usuario;
     }
 
+    @Transactional
+    public Usuario concederArbitro(UUID usuarioId) {
+        Usuario usuario = buscar(usuarioId);
+        if (usuario.getStatus() == StatusUsuario.BLOQUEADO || usuario.getStatus() == StatusUsuario.INATIVO) {
+            throw new RegraNegocioException("Não é possível conceder papéis a um usuário bloqueado ou inativo.");
+        }
+        if (!usuario.possuiPapel(PAPEL_ARBITRO)) {
+            usuario.adicionarPapel(buscarPapel(PAPEL_ARBITRO));
+            usuario.ativar();
+            log.info("Papel de árbitro concedido ao usuário {}.", usuarioId);
+        }
+        return usuario;
+    }
+
+    @Transactional
+    public Usuario revogarArbitro(UUID usuarioId) {
+        Usuario usuario = buscar(usuarioId);
+        if (usuario.possuiPapel(PAPEL_ARBITRO)) {
+            usuario.removerPapel(buscarPapel(PAPEL_ARBITRO));
+            log.info("Papel de árbitro revogado do usuário {}.", usuarioId);
+        }
+        return usuario;
+    }
+
     private Usuario buscar(UUID usuarioId) {
         return usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Usuário não encontrado."));
@@ -102,5 +127,10 @@ public class GestaoPapelService {
                 .orElseThrow(() -> new IllegalStateException(
                         "Papel ORGANIZADOR não encontrado. Verifique a migration V1."
                 ));
+    }
+
+    private Papel buscarPapel(String nome) {
+        return papelRepository.findByNome(nome)
+                .orElseThrow(() -> new IllegalStateException("Papel " + nome + " não encontrado."));
     }
 }

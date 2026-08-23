@@ -82,4 +82,14 @@ public class AdminUsuarioController {
 
         return UsuarioResumoResponse.de(usuario);
     }
+
+    @PostMapping("/{usuarioId}/arbitro")
+    public UsuarioResumoResponse concederArbitro(@PathVariable UUID usuarioId) {
+        return UsuarioResumoResponse.de(gestaoPapelService.concederArbitro(usuarioId));
+    }
+
+    @DeleteMapping("/{usuarioId}/arbitro")
+    public UsuarioResumoResponse revogarArbitro(@PathVariable UUID usuarioId) {
+        return UsuarioResumoResponse.de(gestaoPapelService.revogarArbitro(usuarioId));
+    }
 }

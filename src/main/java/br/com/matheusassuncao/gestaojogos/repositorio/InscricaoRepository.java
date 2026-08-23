@@ -30,6 +30,11 @@ public interface InscricaoRepository extends JpaRepository<Inscricao, UUID> {
             """)
     long contarConfirmados(@Param("partidaId") UUID partidaId);
 
+    Optional<Inscricao> findFirstByPartidaIdAndStatusOrderByDataSolicitacaoAsc(
+            UUID partidaId,
+            StatusInscricao status
+    );
+
     @Query("""
             SELECT i FROM Inscricao i
             WHERE i.partida.id = :partidaId

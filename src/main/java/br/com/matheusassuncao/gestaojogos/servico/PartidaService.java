@@ -17,6 +17,7 @@ import br.com.matheusassuncao.gestaojogos.excecao.RegraNegocioException;
 import br.com.matheusassuncao.gestaojogos.repositorio.CategoriaRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.LocalPartidaRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.ModalidadeRepository;
+import br.com.matheusassuncao.gestaojogos.repositorio.InscricaoRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.PartidaRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.UsuarioRepository;
 import org.slf4j.Logger;
@@ -38,6 +39,7 @@ public class PartidaService {
     private static final Logger log = LoggerFactory.getLogger(PartidaService.class);
 
     private final PartidaRepository partidaRepository;
+    private final InscricaoRepository inscricaoRepository;
     private final ModalidadeRepository modalidadeRepository;
     private final LocalPartidaRepository localPartidaRepository;
     private final CategoriaRepository categoriaRepository;
@@ -46,6 +48,7 @@ public class PartidaService {
     private final InscricaoService inscricaoService;
 
     public PartidaService(PartidaRepository partidaRepository,
+                          InscricaoRepository inscricaoRepository,
                           ModalidadeRepository modalidadeRepository,
                           LocalPartidaRepository localPartidaRepository,
                           CategoriaRepository categoriaRepository,
@@ -53,6 +56,7 @@ public class PartidaService {
                           CalendarioService calendarioService,
                           InscricaoService inscricaoService) {
         this.partidaRepository = partidaRepository;
+        this.inscricaoRepository = inscricaoRepository;
         this.modalidadeRepository = modalidadeRepository;
         this.localPartidaRepository = localPartidaRepository;
         this.categoriaRepository = categoriaRepository;
@@ -65,7 +69,7 @@ public class PartidaService {
     public List<PartidaResponse> listarFuturas() {
         return partidaRepository.findByInicioAfterOrderByInicio(OffsetDateTime.now())
                 .stream()
-                .map(PartidaResponse::de)
+                .map(this::responder)
                 .toList();
     }
 
@@ -107,7 +111,7 @@ public class PartidaService {
                         OffsetDateTime.now()
                 )
                 .stream()
-                .map(PartidaResponse::de)
+                .map(this::responder)
                 .toList();
     }
 
@@ -118,7 +122,7 @@ public class PartidaService {
 
     @Transactional(readOnly = true)
     public PartidaResponse detalhar(UUID partidaId) {
-        return PartidaResponse.de(buscar(partidaId));
+        return responder(buscar(partidaId));
     }
 
     /**
@@ -160,7 +164,7 @@ public class PartidaService {
 
         log.info("Partida {} criada para {}.", partida.getId(), partida.getInicio());
 
-        return PartidaResponse.de(partida);
+        return responder(partida);
     }
 
     /**
@@ -196,7 +200,7 @@ public class PartidaService {
 
         partidaRepository.flush();
 
-        return PartidaResponse.de(partida);
+        return responder(partida);
     }
 
     @Transactional
@@ -207,7 +211,7 @@ public class PartidaService {
 
         log.info("Partida {} aberta para inscrições.", partidaId);
 
-        return PartidaResponse.de(partida);
+        return responder(partida);
     }
 
     /**
@@ -226,7 +230,7 @@ public class PartidaService {
 
         log.info("Partida {} cancelada, com {} inscrições afetadas.", partidaId, canceladas);
 
-        return PartidaResponse.de(partida);
+        return responder(partida);
     }
 
     private LocalPartida buscarLocal(UUID localId) {
@@ -246,6 +250,13 @@ public class PartidaService {
     private Usuario buscarOrganizador(String email) {
         return usuarioRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Organizador não encontrado."));
+    }
+
+    private PartidaResponse responder(Partida partida) {
+        return PartidaResponse.de(
+                partida,
+                inscricaoRepository.contarConfirmados(partida.getId())
+        );
     }
 
     private void validarPeriodoDeInscricao(OffsetDateTime abrem,

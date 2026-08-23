@@ -14,6 +14,7 @@ public record PartidaResponse(
         String categoria,
         OffsetDateTime inicio,
         Integer capacidade,
+        Long quantidadeInscritos,
         String status,
         OffsetDateTime inscricoesAbremEm,
         OffsetDateTime inscricoesEncerramEm,
@@ -34,7 +35,7 @@ public record PartidaResponse(
         }
     }
 
-    public static PartidaResponse de(Partida partida) {
+    public static PartidaResponse de(Partida partida, long quantidadeInscritos) {
         return new PartidaResponse(
                 partida.getId(),
                 partida.getModalidade().getNome(),
@@ -42,6 +43,7 @@ public record PartidaResponse(
                 partida.getCategoria() != null ? partida.getCategoria().getNome() : null,
                 partida.getInicio(),
                 partida.getCapacidade(),
+                quantidadeInscritos,
                 partida.getStatus().name(),
                 partida.getInscricoesAbremEm(),
                 partida.getInscricoesEncerramEm(),

@@ -82,25 +82,24 @@ public class InscricaoService {
 
         long confirmados = inscricaoRepository.contarConfirmados(partidaId);
 
-        // RN02 e RN04. A lista de espera (RN12) entra no Marco 2: por ora a
-        // partida lotada simplesmente recusa novas inscrições.
-        if (confirmados >= partida.getCapacidade()) {
-            throw new RegraNegocioException(
-                    "Esta partida já atingiu o limite de %d jogadores."
-                            .formatted(partida.getCapacidade())
-            );
-        }
+        boolean entraNaListaDeEspera = confirmados >= partida.getCapacidade();
 
         Inscricao inscricao = inscricaoRepository.save(
-                new Inscricao(partida, jogador, StatusInscricao.CONFIRMADA)
+                new Inscricao(
+                        partida,
+                        jogador,
+                        entraNaListaDeEspera
+                                ? StatusInscricao.LISTA_ESPERA
+                                : StatusInscricao.CONFIRMADA
+                )
         );
 
-        if (confirmados + 1 == partida.getCapacidade()) {
+        if (!entraNaListaDeEspera && confirmados + 1 == partida.getCapacidade()) {
             partida.marcarComoLotada();
         }
 
-        log.info("Jogador {} inscrito na partida {} ({}/{}).",
-                jogador.getId(), partidaId, confirmados + 1, partida.getCapacidade());
+        log.info("Jogador {} inscrito na partida {} com status {}.",
+                jogador.getId(), partidaId, inscricao.getStatus());
 
         // A resposta HTTP é montada fora desta transação (open-in-view
         // desligado): inicializa o proxy do local aqui, enquanto a sessão
@@ -141,11 +140,26 @@ public class InscricaoService {
                         "Você não possui inscrição ativa nesta partida."
                 ));
 
+        boolean ocupavaVaga = inscricao.getStatus() == StatusInscricao.CONFIRMADA
+                || inscricao.getStatus() == StatusInscricao.PRESENTE
+                || inscricao.getStatus() == StatusInscricao.AUSENTE;
+
         inscricao.cancelar(usuario, "Cancelado pelo próprio jogador.");
 
-        // RN15: a vaga liberada reabre a partida.
-        // A promoção da lista de espera (RN12) entra aqui no Marco 2.
-        partida.reabrirSeLotada();
+        if (ocupavaVaga) {
+            inscricaoRepository
+                    .findFirstByPartidaIdAndStatusOrderByDataSolicitacaoAsc(
+                            partidaId,
+                            StatusInscricao.LISTA_ESPERA
+                    )
+                    .ifPresentOrElse(
+                            proxima -> {
+                                proxima.promover();
+                                log.info("Inscrição {} promovida da lista de espera.", proxima.getId());
+                            },
+                            partida::reabrirSeLotada
+                    );
+        }
 
         log.info("Inscrição {} cancelada na partida {}.", inscricao.getId(), partidaId);
     }
@@ -166,6 +180,28 @@ public class InscricaoService {
         return jogadorRepository.findByUsuarioId(usuario.getId())
                 .map(jogador -> inscricaoRepository.listarAtivasDoJogador(jogador.getId()))
                 .orElseGet(List::of);
+    }
+
+    @Transactional(readOnly = true)
+    public long contarConfirmados(UUID partidaId) {
+        return inscricaoRepository.contarConfirmados(partidaId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Inscricao> listarParticipantesParaJogador(UUID partidaId, String emailDoJogador) {
+        Usuario usuario = buscarUsuario(emailDoJogador);
+        Jogador jogador = jogadorRepository.findByUsuarioId(usuario.getId())
+                .orElseThrow(() -> new RegraNegocioException(
+                        "Seu cadastro ainda não foi aprovado."
+                ));
+
+        if (inscricaoRepository.buscarInscricaoAtiva(partidaId, jogador.getId()).isEmpty()) {
+            throw new RegraNegocioException(
+                    "A lista de participantes está disponível apenas para inscritos na partida."
+            );
+        }
+
+        return inscricaoRepository.listarAtivasDaPartida(partidaId);
     }
 
     /**

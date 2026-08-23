@@ -2,6 +2,7 @@ package br.com.matheusassuncao.gestaojogos.controlador;
 
 import br.com.matheusassuncao.gestaojogos.IntegracaoTest;
 import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
+import br.com.matheusassuncao.gestaojogos.dominio.StatusUsuario;
 import br.com.matheusassuncao.gestaojogos.repositorio.PapelRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.UsuarioRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -118,6 +119,45 @@ class AdminUsuarioControllerTest extends IntegracaoTest {
     }
 
     @Test
+    @DisplayName("Administrador concede e revoga o papel de árbitro")
+    void gerenciarArbitro() throws Exception {
+        criarAdministrador();
+        Usuario usuario = criarUsuarioComum();
+        MockHttpSession sessaoAdmin = autenticar(EMAIL_ADMIN);
+
+        mockMvc.perform(post("/api/admin/usuarios/{id}/arbitro", usuario.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.papeis").value("ARBITRO"))
+                .andExpect(jsonPath("$.status").value("ATIVO"));
+
+        mockMvc.perform(delete("/api/admin/usuarios/{id}/arbitro", usuario.getId())
+                        .session(sessaoAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.papeis").isEmpty());
+
+        assertThat(usuarioRepository.findById(usuario.getId()).orElseThrow().possuiPapel("ARBITRO"))
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("Administrador pode reativar uma conta que possui apenas o papel de árbitro")
+    void reativarArbitro() throws Exception {
+        criarAdministrador();
+        Usuario usuario = criarUsuarioComum();
+        usuario.adicionarPapel(papelRepository.findByNome("ARBITRO").orElseThrow());
+        usuario.alterarStatus(StatusUsuario.INATIVO);
+        usuario = usuarioRepository.save(usuario);
+
+        mockMvc.perform(patch("/api/admin/usuarios/{id}/status", usuario.getId())
+                        .session(autenticar(EMAIL_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"status\": \"ATIVO\", \"versao\": %d }".formatted(usuario.getVersao())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ATIVO"));
+    }
+
+    @Test
     @DisplayName("Revogar de quem não tem o papel não devolve erro")
     void revogacaoIdempotente() throws Exception {
         criarAdministrador();
@@ -214,6 +254,26 @@ class AdminUsuarioControllerTest extends IntegracaoTest {
                         .session(sessao).contentType(MediaType.APPLICATION_JSON)
                         .content("{ \"status\": \"ATIVO\", \"versao\": 0 }"))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("Conta sem perfil não pode ser ativada sem passar pela aprovação")
+    void naoAtivaCadastroSemPerfilDeJogador() throws Exception {
+        criarAdministrador();
+        Usuario pendente = usuarioRepository.save(new Usuario(
+                "Lucas",
+                "lucas@teste.com",
+                passwordEncoder.encode(SENHA)
+        ));
+
+        mockMvc.perform(patch("/api/admin/usuarios/{id}/status", pendente.getId())
+                        .session(autenticar(EMAIL_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"status\": \"ATIVO\", \"versao\": %d }".formatted(pendente.getVersao())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(
+                        org.hamcrest.Matchers.containsString("Solicitações")
+                ));
     }
 
     @Test

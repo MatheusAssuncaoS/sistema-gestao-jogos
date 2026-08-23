@@ -13,10 +13,12 @@ public record InscricaoResponse(
         String status,
         OffsetDateTime dataSolicitacao,
         OffsetDateTime dataConfirmacao,
-        String equipe
+        String equipe,
+        Integer capacidade,
+        Long quantidadeConfirmados
 ) {
 
-    public static InscricaoResponse de(Inscricao inscricao) {
+    public static InscricaoResponse de(Inscricao inscricao, long quantidadeConfirmados) {
         return new InscricaoResponse(
                 inscricao.getId(),
                 inscricao.getPartida().getId(),
@@ -27,7 +29,9 @@ public record InscricaoResponse(
                 inscricao.getDataConfirmacao(),
                 // RN05: a cor do colete só é revelada após a publicação da
                 // escalação, que entra no Marco 2.
-                null
+                null,
+                inscricao.getPartida().getCapacidade(),
+                quantidadeConfirmados
         );
     }
 }

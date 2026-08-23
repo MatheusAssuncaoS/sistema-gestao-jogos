@@ -66,6 +66,15 @@ public class AdminUsuarioService {
         if (usuario.getEmail().equalsIgnoreCase(administrador) && status != StatusUsuario.ATIVO) {
             throw new RegraNegocioException("Você não pode bloquear ou inativar a própria conta.");
         }
+        if (status == StatusUsuario.ATIVO
+                && !jogadorRepository.existsByUsuarioId(id)
+                && !usuario.possuiPapel("ORGANIZADOR")
+                && !usuario.possuiPapel("ARBITRO")
+                && !usuario.possuiPapel("ADMINISTRADOR")) {
+            throw new RegraNegocioException(
+                    "Aprove este cadastro em Solicitações para criar o perfil de jogador."
+            );
+        }
         usuario.alterarStatus(status);
         log.info("AUDITORIA admin={} acao=ALTERAR_STATUS_USUARIO usuario={} status={}.", administrador, id, status);
         return usuario;
