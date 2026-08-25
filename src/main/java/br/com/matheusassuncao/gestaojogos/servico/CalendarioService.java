@@ -1,12 +1,14 @@
 package br.com.matheusassuncao.gestaojogos.servico;
 
-import br.com.matheusassuncao.gestaojogos.dominio.DiaFuncionamento;
+import br.com.matheusassuncao.gestaojogos.dominio.*;
+import br.com.matheusassuncao.gestaojogos.dto.AgendaRequest;
 import br.com.matheusassuncao.gestaojogos.dominio.ExcecaoCalendario;
 import br.com.matheusassuncao.gestaojogos.dominio.TipoExcecao;
 import br.com.matheusassuncao.gestaojogos.excecao.RecursoNaoEncontradoException;
 import br.com.matheusassuncao.gestaojogos.excecao.RegraNegocioException;
 import br.com.matheusassuncao.gestaojogos.repositorio.DiaFuncionamentoRepository;
 import br.com.matheusassuncao.gestaojogos.repositorio.ExcecaoCalendarioRepository;
+import br.com.matheusassuncao.gestaojogos.repositorio.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,8 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * UC21: gerenciar calendário.
@@ -37,11 +41,22 @@ public class CalendarioService {
 
     private final DiaFuncionamentoRepository diaFuncionamentoRepository;
     private final ExcecaoCalendarioRepository excecaoCalendarioRepository;
+    private final AgendaDisponibilidadeRepository agendaRepository;
+    private final LocalPartidaRepository localRepository;
+    private final ModalidadeRepository modalidadeRepository;
+    private final CategoriaRepository categoriaRepository;
 
     public CalendarioService(DiaFuncionamentoRepository diaFuncionamentoRepository,
-                             ExcecaoCalendarioRepository excecaoCalendarioRepository) {
+                             ExcecaoCalendarioRepository excecaoCalendarioRepository,
+                             AgendaDisponibilidadeRepository agendaRepository,
+                             LocalPartidaRepository localRepository, ModalidadeRepository modalidadeRepository,
+                             CategoriaRepository categoriaRepository) {
         this.diaFuncionamentoRepository = diaFuncionamentoRepository;
         this.excecaoCalendarioRepository = excecaoCalendarioRepository;
+        this.agendaRepository = agendaRepository;
+        this.localRepository = localRepository;
+        this.modalidadeRepository = modalidadeRepository;
+        this.categoriaRepository = categoriaRepository;
     }
 
     /**
@@ -75,22 +90,83 @@ public class CalendarioService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public void validarDataDisponivel(OffsetDateTime inicio, UUID localId, UUID modalidadeId, Long categoriaId) {
+        LocalDateTime local = inicio.atZoneSameInstant(FUSO_DO_CLUBE).toLocalDateTime();
+        excecaoCalendarioRepository.buscarQueCobre(local.toLocalDate()).ifPresent(excecao -> {
+            throw new RegraNegocioException("Não há partidas neste período: " + excecao.getDescricao() + ".");
+        });
+        List<AgendaDisponibilidade> agendas = agendaRepository.findByAtivoTrueOrderByInicioAscNomeAsc();
+        if (agendas.isEmpty()) { validarDataDisponivel(inicio); return; }
+        boolean disponivel = agendas.stream().anyMatch(agenda -> agenda.contempla(local.toLocalDate(), local.getDayOfWeek(),
+                local.toLocalTime(), localId, modalidadeId, categoriaId));
+        if (!disponivel) throw new RegraNegocioException("O local, modalidade, categoria e horário não pertencem a uma agenda disponível.");
+    }
+
+    @Transactional(readOnly = true)
+    public List<AgendaDisponibilidade> listarAgendas() { return agendaRepository.findByAtivoTrueOrderByInicioAscNomeAsc(); }
+
+    @Transactional
+    public AgendaDisponibilidade criarAgenda(AgendaRequest request) { return agendaRepository.save(montarAgenda(null, request)); }
+
+    @Transactional
+    public AgendaDisponibilidade editarAgenda(UUID id, AgendaRequest request) {
+        AgendaDisponibilidade agenda = agendaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Agenda não encontrada."));
+        montarAgenda(agenda, request); return agenda;
+    }
+
+    @Transactional
+    public void excluirAgenda(UUID id) {
+        AgendaDisponibilidade agenda = agendaRepository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Agenda não encontrada."));
+        agenda.desativar();
+    }
+
+    private AgendaDisponibilidade montarAgenda(AgendaDisponibilidade existente, AgendaRequest request) {
+        if (request.fim().isBefore(request.inicio())) throw new RegraNegocioException("A data final deve ser igual ou posterior à inicial.");
+        LocalPartida local = localRepository.findById(request.localId()).orElseThrow(() -> new RecursoNaoEncontradoException("Local não encontrado."));
+        Modalidade modalidade = modalidadeRepository.findById(request.modalidadeId()).orElseThrow(() -> new RecursoNaoEncontradoException("Modalidade não encontrada."));
+        Categoria categoria = request.categoriaId() == null ? null : categoriaRepository.findById(request.categoriaId()).orElseThrow(() -> new RecursoNaoEncontradoException("Categoria não encontrada."));
+        Map<DayOfWeek, List<LocalTime>> regras = request.regras().stream().collect(Collectors.toMap(AgendaRequest.RegraAgendaRequest::diaDaSemana,
+                AgendaRequest.RegraAgendaRequest::horarios, (a,b) -> { var uniao = new ArrayList<>(a); uniao.addAll(b); return uniao; }));
+        if (existente == null) return new AgendaDisponibilidade(request.nome(), local, modalidade, categoria, request.inicio(), request.fim(), regras);
+        existente.atualizar(request.nome(), local, modalidade, categoria, request.inicio(), request.fim(), regras); return existente;
+    }
+
     /**
      * Próximos horários em que é possível agendar, já descontando feriados e
      * recessos. Útil para o cliente montar a agenda.
      */
     @Transactional(readOnly = true)
     public List<OffsetDateTime> listarProximosHorarios(int diasAFrente) {
+        List<AgendaDisponibilidade> agendas = agendaRepository.findByAtivoTrueOrderByInicioAscNomeAsc();
+        if (!agendas.isEmpty()) {
+            LocalDate hoje = LocalDate.now(FUSO_DO_CLUBE);
+            LocalDate limite = hoje.plusDays(diasAFrente);
+            OffsetDateTime agora = OffsetDateTime.now();
+            List<ExcecaoCalendario> excecoes = excecaoCalendarioRepository.findByFimGreaterThanEqualOrderByInicio(hoje);
+            return agendas.stream().flatMap(agenda -> agenda.getHorarios().stream().flatMap(regra -> {
+                        LocalDate primeiro = agenda.getInicio().isAfter(hoje) ? agenda.getInicio() : hoje;
+                        LocalDate ultimo = agenda.getFim().isBefore(limite) ? agenda.getFim() : limite;
+                        if (ultimo.isBefore(primeiro)) return java.util.stream.Stream.empty();
+                        return primeiro.datesUntil(ultimo.plusDays(1))
+                                .filter(data -> data.getDayOfWeek() == regra.getDiaDaSemana())
+                                .filter(data -> excecoes.stream().noneMatch(excecao -> excecao.cobre(data)))
+                                .map(data -> data.atTime(regra.getHorario()).atZone(FUSO_DO_CLUBE).toOffsetDateTime())
+                                .filter(data -> data.isAfter(agora));
+                    })).distinct().sorted().toList();
+        }
         List<DiaFuncionamento> configurados =
                 diaFuncionamentoRepository.findByAtivoTrueOrderByDiaDaSemanaAscHorarioAsc();
 
         List<OffsetDateTime> horarios = new ArrayList<>();
         LocalDate hoje = LocalDate.now(FUSO_DO_CLUBE);
+        List<ExcecaoCalendario> excecoesFuturas =
+                excecaoCalendarioRepository.findByFimGreaterThanEqualOrderByInicio(hoje);
 
         for (int dia = 0; dia <= diasAFrente; dia++) {
             LocalDate data = hoje.plusDays(dia);
 
-            if (excecaoCalendarioRepository.buscarQueCobre(data).isPresent()) {
+            if (excecoesFuturas.stream().anyMatch(excecao -> excecao.cobre(data))) {
                 continue;
             }
 

@@ -22,6 +22,10 @@ public interface PartidaRepository extends JpaRepository<Partida, UUID> {
 
     boolean existsByCategoria_Id(Long categoriaId);
 
+    boolean existsByLocal_IdAndInicioAndStatusNot(UUID localId, OffsetDateTime inicio, StatusPartida status);
+
+    boolean existsByLocal_IdAndInicioAndStatusNotAndIdNot(UUID localId, OffsetDateTime inicio, StatusPartida status, UUID id);
+
     List<Partida> findByStatusInOrderByInicio(Collection<StatusPartida> status);
 
     List<Partida> findByInicioAfterOrderByInicio(OffsetDateTime referencia);

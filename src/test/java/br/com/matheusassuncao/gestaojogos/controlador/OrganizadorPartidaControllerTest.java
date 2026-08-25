@@ -113,6 +113,60 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     }
 
     @Test
+    @DisplayName("Não permite duas partidas no mesmo local, dia e horário")
+    void rejeitarHorarioJaOcupado() throws Exception {
+        criarOrganizador();
+        MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
+        OffsetDateTime inicio = proximaDataValida();
+
+        mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(inicio)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(inicio)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Já existe uma partida marcada neste local, dia e horário."));
+    }
+
+    @Test
+    @DisplayName("Lote é rejeitado por inteiro quando contém horário já ocupado")
+    void rejeitarLoteComHorarioOcupado() throws Exception {
+        criarOrganizador();
+        MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
+        OffsetDateTime ocupado = proximaDataValida();
+        OffsetDateTime livre = ocupado.plusWeeks(1);
+
+        mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(ocupado)))
+                .andExpect(status().isCreated());
+        long quantidadeAntes = partidaRepository.count();
+
+        String lote = """
+                {
+                  "modalidadeId": "%s",
+                  "localId": "%s",
+                  "inicios": ["%s", "%s"]
+                }
+                """.formatted(modalidadeId, localId, ocupado, livre);
+
+        mockMvc.perform(post("/api/organizador/partidas/lote")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(lote))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Já existe uma partida marcada neste local, dia e horário."));
+
+        assertThat(partidaRepository.count()).isEqualTo(quantidadeAntes);
+    }
+
+    @Test
     @DisplayName("Partida no passado é rejeitada: 400")
     void criarPartidaNoPassado() throws Exception {
         criarOrganizador();
@@ -333,7 +387,11 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
 
         criarPartidaViaApi(sessao);
-        criarPartidaViaApi(sessao);
+        mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(outraDataValida())))
+                .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/organizador/partidas").session(sessao))
                 .andExpect(status().isOk())
@@ -426,7 +484,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
         mockMvc.perform(post("/api/organizador/partidas")
                         .session(sessaoAdmin)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(corpoDeCriacao(proximaDataValida())))
+                        .content(corpoDeCriacao(outraDataValida())))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/organizador/partidas/{id}/abrir", partidaId).session(sessaoAdmin))

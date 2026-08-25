@@ -17,8 +17,10 @@ import java.util.List;
 @RequestMapping("/api/calendario")
 public class CalendarioController {
 
-    private static final int PADRAO_DE_DIAS = 30;
-    private static final int MAXIMO_DE_DIAS = 90;
+    /** Dois anos permitem planejar toda a próxima temporada, inclusive quando
+     * a consulta acontece perto do fim do ano corrente. */
+    private static final int PADRAO_DE_DIAS = 730;
+    private static final int MAXIMO_DE_DIAS = 730;
 
     private final CalendarioService calendarioService;
 

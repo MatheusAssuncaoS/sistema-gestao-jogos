@@ -4,6 +4,8 @@ import br.com.matheusassuncao.gestaojogos.dto.DiaFuncionamentoRequest;
 import br.com.matheusassuncao.gestaojogos.dto.DiaFuncionamentoResponse;
 import br.com.matheusassuncao.gestaojogos.dto.ExcecaoCalendarioRequest;
 import br.com.matheusassuncao.gestaojogos.dto.ExcecaoCalendarioResponse;
+import br.com.matheusassuncao.gestaojogos.dto.AgendaRequest;
+import br.com.matheusassuncao.gestaojogos.dto.AgendaResponse;
 import br.com.matheusassuncao.gestaojogos.servico.CalendarioService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,22 @@ public class AdminCalendarioController {
     public AdminCalendarioController(CalendarioService calendarioService) {
         this.calendarioService = calendarioService;
     }
+
+    @GetMapping("/agendas")
+    public List<AgendaResponse> listarAgendas() { return calendarioService.listarAgendas().stream().map(AgendaResponse::de).toList(); }
+
+    @PostMapping("/agendas")
+    public ResponseEntity<AgendaResponse> criarAgenda(@RequestBody @Valid AgendaRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(AgendaResponse.de(calendarioService.criarAgenda(request)));
+    }
+
+    @PutMapping("/agendas/{agendaId}")
+    public AgendaResponse editarAgenda(@PathVariable UUID agendaId, @RequestBody @Valid AgendaRequest request) {
+        return AgendaResponse.de(calendarioService.editarAgenda(agendaId, request));
+    }
+
+    @DeleteMapping("/agendas/{agendaId}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluirAgenda(@PathVariable UUID agendaId) { calendarioService.excluirAgenda(agendaId); }
 
     @GetMapping("/dias-funcionamento")
     public List<DiaFuncionamentoResponse> listarDias() {

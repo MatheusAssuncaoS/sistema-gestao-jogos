@@ -2,6 +2,7 @@ package br.com.matheusassuncao.gestaojogos.controlador;
 
 import br.com.matheusassuncao.gestaojogos.dto.CategoriaResponse;
 import br.com.matheusassuncao.gestaojogos.dto.CriarPartidaRequest;
+import br.com.matheusassuncao.gestaojogos.dto.CriarPartidasLoteRequest;
 import br.com.matheusassuncao.gestaojogos.dto.EditarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.InscritoResponse;
 import br.com.matheusassuncao.gestaojogos.dto.LocalPartidaResponse;
@@ -86,6 +87,14 @@ public class OrganizadorPartidaController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(partidaService.criar(request, organizador.getUsername()));
+    }
+
+    @PostMapping("/lote")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
+    public ResponseEntity<List<PartidaResponse>> criarLote(@RequestBody @Valid CriarPartidasLoteRequest request,
+                                                            @AuthenticationPrincipal UserDetails organizador) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(partidaService.criarLote(request, organizador.getUsername()));
     }
 
     @PutMapping("/{partidaId}")

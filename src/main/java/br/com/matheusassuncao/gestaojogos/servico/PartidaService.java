@@ -8,6 +8,7 @@ import br.com.matheusassuncao.gestaojogos.dominio.StatusPartida;
 import br.com.matheusassuncao.gestaojogos.dominio.Usuario;
 import br.com.matheusassuncao.gestaojogos.dto.CategoriaResponse;
 import br.com.matheusassuncao.gestaojogos.dto.CriarPartidaRequest;
+import br.com.matheusassuncao.gestaojogos.dto.CriarPartidasLoteRequest;
 import br.com.matheusassuncao.gestaojogos.dto.EditarPartidaRequest;
 import br.com.matheusassuncao.gestaojogos.dto.LocalPartidaResponse;
 import br.com.matheusassuncao.gestaojogos.dto.ModalidadeResponse;
@@ -46,6 +47,7 @@ public class PartidaService {
     private final UsuarioRepository usuarioRepository;
     private final CalendarioService calendarioService;
     private final InscricaoService inscricaoService;
+    private final ArbitragemService arbitragemService;
 
     public PartidaService(PartidaRepository partidaRepository,
                           InscricaoRepository inscricaoRepository,
@@ -54,7 +56,8 @@ public class PartidaService {
                           CategoriaRepository categoriaRepository,
                           UsuarioRepository usuarioRepository,
                           CalendarioService calendarioService,
-                          InscricaoService inscricaoService) {
+                          InscricaoService inscricaoService,
+                          ArbitragemService arbitragemService) {
         this.partidaRepository = partidaRepository;
         this.inscricaoRepository = inscricaoRepository;
         this.modalidadeRepository = modalidadeRepository;
@@ -63,6 +66,7 @@ public class PartidaService {
         this.usuarioRepository = usuarioRepository;
         this.calendarioService = calendarioService;
         this.inscricaoService = inscricaoService;
+        this.arbitragemService = arbitragemService;
     }
 
     @Transactional(readOnly = true)
@@ -137,11 +141,12 @@ public class PartidaService {
         Modalidade modalidade = modalidadeRepository.findById(request.modalidadeId())
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Modalidade não encontrada."));
 
-        LocalPartida local = buscarLocal(request.localId());
+        LocalPartida local = buscarLocalComBloqueio(request.localId());
         Categoria categoria = buscarCategoriaOpcional(request.categoriaId());
         Usuario organizador = buscarOrganizador(emailDoOrganizador);
 
-        calendarioService.validarDataDisponivel(request.inicio());
+        calendarioService.validarDataDisponivel(request.inicio(), local.getId(), modalidade.getId(), categoria == null ? null : categoria.getId());
+        validarHorarioLivre(local.getId(), request.inicio(), null);
 
         validarPeriodoDeInscricao(
                 request.inscricoesAbremEm(),
@@ -167,6 +172,16 @@ public class PartidaService {
         return responder(partida);
     }
 
+    /** Cria uma série de partidas em uma única transação: se uma data for
+     * inválida, nenhuma partida do lote é persistida. */
+    @Transactional
+    public List<PartidaResponse> criarLote(CriarPartidasLoteRequest request, String emailDoOrganizador) {
+        return request.inicios().stream().distinct().sorted().map(inicio -> criar(
+                new CriarPartidaRequest(request.modalidadeId(), request.localId(), request.categoriaId(), inicio,
+                        request.capacidade(), request.inscricoesAbremEm(), request.inscricoesEncerramEm()),
+                emailDoOrganizador)).toList();
+    }
+
     /**
      * Edição com lock otimista: se a versão enviada não for a atual, o
      * Hibernate rejeita o update e a exceção vira 409 no TratadorDeErros.
@@ -179,10 +194,11 @@ public class PartidaService {
             throw new ObjectOptimisticLockingFailureException(Partida.class, partidaId);
         }
 
-        LocalPartida local = buscarLocal(request.localId());
+        LocalPartida local = buscarLocalComBloqueio(request.localId());
         Categoria categoria = buscarCategoriaOpcional(request.categoriaId());
 
-        calendarioService.validarDataDisponivel(request.inicio());
+        calendarioService.validarDataDisponivel(request.inicio(), local.getId(), partida.getModalidade().getId(), categoria == null ? null : categoria.getId());
+        validarHorarioLivre(local.getId(), request.inicio(), partidaId);
 
         validarPeriodoDeInscricao(
                 request.inscricoesAbremEm(),
@@ -238,6 +254,21 @@ public class PartidaService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Local não encontrado."));
     }
 
+    private LocalPartida buscarLocalComBloqueio(UUID localId) {
+        return localPartidaRepository.buscarPorIdComBloqueio(localId)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Local não encontrado."));
+    }
+
+    private void validarHorarioLivre(UUID localId, OffsetDateTime inicio, UUID partidaIgnorada) {
+        boolean ocupado = partidaIgnorada == null
+                ? partidaRepository.existsByLocal_IdAndInicioAndStatusNot(localId, inicio, StatusPartida.CANCELADA)
+                : partidaRepository.existsByLocal_IdAndInicioAndStatusNotAndIdNot(
+                        localId, inicio, StatusPartida.CANCELADA, partidaIgnorada);
+        if (ocupado) {
+            throw new RegraNegocioException("Já existe uma partida marcada neste local, dia e horário.");
+        }
+    }
+
     private Categoria buscarCategoriaOpcional(Long categoriaId) {
         if (categoriaId == null) {
             return null;
@@ -255,7 +286,8 @@ public class PartidaService {
     private PartidaResponse responder(Partida partida) {
         return PartidaResponse.de(
                 partida,
-                inscricaoRepository.contarConfirmados(partida.getId())
+                inscricaoRepository.contarConfirmados(partida.getId()),
+                arbitragemService.resumir(partida.getId())
         );
     }
 

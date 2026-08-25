@@ -20,7 +20,8 @@ public record PartidaResponse(
         OffsetDateTime inscricoesEncerramEm,
         Boolean escalaPublicada,
         Integer versao,
-        List<EquipeResponse> equipes
+        List<EquipeResponse> equipes,
+        ResumoArbitragemResponse arbitragem
 ) {
 
     public record EquipeResponse(UUID id, String nome, String cor, Integer capacidade) {
@@ -35,7 +36,8 @@ public record PartidaResponse(
         }
     }
 
-    public static PartidaResponse de(Partida partida, long quantidadeInscritos) {
+    public static PartidaResponse de(Partida partida, long quantidadeInscritos,
+                                     ResumoArbitragemResponse arbitragem) {
         return new PartidaResponse(
                 partida.getId(),
                 partida.getModalidade().getNome(),
@@ -51,7 +53,8 @@ public record PartidaResponse(
                 partida.getVersao(),
                 partida.getEquipes().stream()
                         .map(EquipeResponse::de)
-                        .toList()
+                        .toList(),
+                arbitragem
         );
     }
 }

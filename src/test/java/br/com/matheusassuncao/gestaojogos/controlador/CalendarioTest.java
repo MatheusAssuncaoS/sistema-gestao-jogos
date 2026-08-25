@@ -260,6 +260,17 @@ class CalendarioTest extends IntegracaoTest {
     }
 
     @Test
+    @DisplayName("Calendário oferece horários do próximo ano")
+    void calendarioContemplaProximoAno() {
+        int anoAtual = LocalDate.now(FUSO_DO_CLUBE).getYear();
+
+        List<OffsetDateTime> horarios = calendarioService.listarProximosHorarios(730);
+
+        assertThat(horarios)
+                .anyMatch(horario -> horario.atZoneSameInstant(FUSO_DO_CLUBE).getYear() > anoAtual);
+    }
+
+    @Test
     @DisplayName("A consulta de horários exige autenticação: 401")
     void consultaExigeAutenticacao() throws Exception {
         mockMvc.perform(get("/api/calendario/horarios-disponiveis"))

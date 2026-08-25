@@ -299,7 +299,7 @@ class InscricaoControllerTest extends IntegracaoTest {
     void listagemDePartidasDisponiveis() throws Exception {
         criarJogadorRegular();
         criarPartidaAberta();
-        criarPartida();
+        criarPartida(16, 1);
 
         MockHttpSession sessao = autenticar(EMAIL_JOGADOR);
 
@@ -377,6 +377,10 @@ class InscricaoControllerTest extends IntegracaoTest {
     }
 
     private UUID criarPartida(int capacidade) {
+        return criarPartida(capacidade, 0);
+    }
+
+    private UUID criarPartida(int capacidade, int indiceHorario) {
         Usuario organizador = usuarioRepository.findByEmailIgnoreCase(EMAIL_ORGANIZADOR)
                 .orElseGet(() -> criarUsuario(EMAIL_ORGANIZADOR, "ORGANIZADOR"));
 
@@ -384,7 +388,7 @@ class InscricaoControllerTest extends IntegracaoTest {
                 modalidadeRepository.findByNomeIgnoreCase("Futebol").orElseThrow().getId(),
                 localPartidaRepository.findByAtivoTrue().getFirst().getId(),
                 null,
-                calendarioService.listarProximosHorarios(30).getFirst(),
+                calendarioService.listarProximosHorarios(30).get(indiceHorario),
                 capacidade,
                 null,
                 null
