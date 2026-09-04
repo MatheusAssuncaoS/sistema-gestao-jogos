@@ -18,9 +18,11 @@ public interface ExcecaoCalendarioRepository extends JpaRepository<ExcecaoCalend
      */
     @Query("""
             SELECT e FROM ExcecaoCalendario e
-            WHERE :data BETWEEN e.inicio AND e.fim
+            WHERE e.ativo = true AND :data BETWEEN e.inicio AND e.fim
             """)
     Optional<ExcecaoCalendario> buscarQueCobre(@Param("data") LocalDate data);
 
-    List<ExcecaoCalendario> findByFimGreaterThanEqualOrderByInicio(LocalDate referencia);
+    List<ExcecaoCalendario> findByAtivoTrueAndFimGreaterThanEqualOrderByInicio(LocalDate referencia);
+
+    List<ExcecaoCalendario> findAllByOrderByInicioDescDescricaoAsc();
 }

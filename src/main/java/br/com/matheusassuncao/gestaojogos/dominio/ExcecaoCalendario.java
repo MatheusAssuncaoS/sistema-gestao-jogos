@@ -40,6 +40,9 @@ public class ExcecaoCalendario {
     @Column(nullable = false)
     private LocalDate fim;
 
+    @Column(nullable = false)
+    private Boolean ativo = true;
+
     @Column(name = "criado_em", nullable = false)
     private OffsetDateTime criadoEm = OffsetDateTime.now();
 
@@ -65,6 +68,10 @@ public class ExcecaoCalendario {
         this.fim = fim;
     }
 
+    public void desativar() {
+        ativo = false;
+    }
+
     public UUID getId() {
         return id;
     }
@@ -83,6 +90,10 @@ public class ExcecaoCalendario {
 
     public LocalDate getFim() {
         return fim;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
     }
 
     public OffsetDateTime getCriadoEm() {

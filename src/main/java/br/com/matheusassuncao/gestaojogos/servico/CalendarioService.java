@@ -104,7 +104,7 @@ public class CalendarioService {
     }
 
     @Transactional(readOnly = true)
-    public List<AgendaDisponibilidade> listarAgendas() { return agendaRepository.findByAtivoTrueOrderByInicioAscNomeAsc(); }
+    public List<AgendaDisponibilidade> listarAgendas() { return agendaRepository.findAllByOrderByInicioDescNomeAsc(); }
 
     @Transactional
     public AgendaDisponibilidade criarAgenda(AgendaRequest request) { return agendaRepository.save(montarAgenda(null, request)); }
@@ -128,8 +128,36 @@ public class CalendarioService {
         Categoria categoria = request.categoriaId() == null ? null : categoriaRepository.findById(request.categoriaId()).orElseThrow(() -> new RecursoNaoEncontradoException("Categoria não encontrada."));
         Map<DayOfWeek, List<LocalTime>> regras = request.regras().stream().collect(Collectors.toMap(AgendaRequest.RegraAgendaRequest::diaDaSemana,
                 AgendaRequest.RegraAgendaRequest::horarios, (a,b) -> { var uniao = new ArrayList<>(a); uniao.addAll(b); return uniao; }));
+        validarConflitosDeAgenda(existente, request, regras);
         if (existente == null) return new AgendaDisponibilidade(request.nome(), local, modalidade, categoria, request.inicio(), request.fim(), regras);
         existente.atualizar(request.nome(), local, modalidade, categoria, request.inicio(), request.fim(), regras); return existente;
+    }
+
+    private void validarConflitosDeAgenda(AgendaDisponibilidade existente, AgendaRequest request,
+                                          Map<DayOfWeek, List<LocalTime>> regras) {
+        List<String> conflitos = agendaRepository.findByAtivoTrueOrderByInicioAscNomeAsc().stream()
+                .filter(agenda -> existente == null || !agenda.getId().equals(existente.getId()))
+                .filter(agenda -> agenda.getLocal().getId().equals(request.localId()))
+                .filter(agenda -> !agenda.getFim().isBefore(request.inicio()) && !agenda.getInicio().isAfter(request.fim()))
+                .flatMap(agenda -> agenda.getHorarios().stream()
+                        .filter(item -> periodosCompartilhamDia(agenda, request, item.getDiaDaSemana()))
+                        .filter(item -> regras.getOrDefault(item.getDiaDaSemana(), List.of()).contains(item.getHorario()))
+                        .map(item -> "%s às %s (%s)".formatted(
+                                item.getDiaDaSemana(), item.getHorario(), agenda.getNome())))
+                .sorted()
+                .toList();
+        if (!conflitos.isEmpty()) {
+            throw new RegraNegocioException(
+                    "Não é possível salvar a agenda porque há horários já reservados neste local: "
+                            + String.join(", ", conflitos) + ".");
+        }
+    }
+
+    private boolean periodosCompartilhamDia(AgendaDisponibilidade agenda, AgendaRequest request, DayOfWeek dia) {
+        LocalDate inicioComum = agenda.getInicio().isAfter(request.inicio()) ? agenda.getInicio() : request.inicio();
+        LocalDate fimComum = agenda.getFim().isBefore(request.fim()) ? agenda.getFim() : request.fim();
+        int diasAteOcorrencia = Math.floorMod(dia.getValue() - inicioComum.getDayOfWeek().getValue(), 7);
+        return !inicioComum.plusDays(diasAteOcorrencia).isAfter(fimComum);
     }
 
     /**
@@ -143,7 +171,7 @@ public class CalendarioService {
             LocalDate hoje = LocalDate.now(FUSO_DO_CLUBE);
             LocalDate limite = hoje.plusDays(diasAFrente);
             OffsetDateTime agora = OffsetDateTime.now();
-            List<ExcecaoCalendario> excecoes = excecaoCalendarioRepository.findByFimGreaterThanEqualOrderByInicio(hoje);
+            List<ExcecaoCalendario> excecoes = excecaoCalendarioRepository.findByAtivoTrueAndFimGreaterThanEqualOrderByInicio(hoje);
             return agendas.stream().flatMap(agenda -> agenda.getHorarios().stream().flatMap(regra -> {
                         LocalDate primeiro = agenda.getInicio().isAfter(hoje) ? agenda.getInicio() : hoje;
                         LocalDate ultimo = agenda.getFim().isBefore(limite) ? agenda.getFim() : limite;
@@ -161,7 +189,7 @@ public class CalendarioService {
         List<OffsetDateTime> horarios = new ArrayList<>();
         LocalDate hoje = LocalDate.now(FUSO_DO_CLUBE);
         List<ExcecaoCalendario> excecoesFuturas =
-                excecaoCalendarioRepository.findByFimGreaterThanEqualOrderByInicio(hoje);
+                excecaoCalendarioRepository.findByAtivoTrueAndFimGreaterThanEqualOrderByInicio(hoje);
 
         for (int dia = 0; dia <= diasAFrente; dia++) {
             LocalDate data = hoje.plusDays(dia);
@@ -228,7 +256,12 @@ public class CalendarioService {
     @Transactional(readOnly = true)
     public List<ExcecaoCalendario> listarExcecoesVigentes() {
         return excecaoCalendarioRepository
-                .findByFimGreaterThanEqualOrderByInicio(LocalDate.now(FUSO_DO_CLUBE));
+                .findByAtivoTrueAndFimGreaterThanEqualOrderByInicio(LocalDate.now(FUSO_DO_CLUBE));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExcecaoCalendario> listarExcecoes() {
+        return excecaoCalendarioRepository.findAllByOrderByInicioDescDescricaoAsc();
     }
 
     @Transactional
@@ -255,7 +288,7 @@ public class CalendarioService {
                         "Exceção de calendário não encontrada."
                 ));
 
-        excecaoCalendarioRepository.delete(excecao);
+        excecao.desativar();
     }
 
     @Transactional

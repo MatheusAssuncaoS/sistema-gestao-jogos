@@ -6,7 +6,7 @@ import java.util.*;
 
 public record AgendaResponse(UUID id, String nome, UUID localId, String local, UUID modalidadeId,
                              String modalidade, Long categoriaId, String categoria, LocalDate inicio,
-                             LocalDate fim, List<RegraAgendaResponse> regras) {
+                             LocalDate fim, Boolean ativo, List<RegraAgendaResponse> regras) {
     public record RegraAgendaResponse(DayOfWeek diaDaSemana, List<LocalTime> horarios) {}
     public static AgendaResponse de(AgendaDisponibilidade agenda) {
         var regras = agenda.getHorarios().stream().collect(java.util.stream.Collectors.groupingBy(
@@ -15,6 +15,6 @@ public record AgendaResponse(UUID id, String nome, UUID localId, String local, U
                 .entrySet().stream().map(e -> new RegraAgendaResponse(e.getKey(), e.getValue().stream().sorted().toList())).toList();
         return new AgendaResponse(agenda.getId(), agenda.getNome(), agenda.getLocal().getId(), agenda.getLocal().getNome(),
                 agenda.getModalidade().getId(), agenda.getModalidade().getNome(), agenda.getCategoria()==null?null:agenda.getCategoria().getId(),
-                agenda.getCategoria()==null?null:agenda.getCategoria().getNome(), agenda.getInicio(), agenda.getFim(), regras);
+                agenda.getCategoria()==null?null:agenda.getCategoria().getNome(), agenda.getInicio(), agenda.getFim(), agenda.getAtivo(), regras);
     }
 }

@@ -11,7 +11,8 @@ public record ExcecaoCalendarioResponse(
         String descricao,
         TipoExcecao tipo,
         LocalDate inicio,
-        LocalDate fim
+        LocalDate fim,
+        Boolean ativo
 ) {
 
     public static ExcecaoCalendarioResponse de(ExcecaoCalendario excecao) {
@@ -20,7 +21,8 @@ public record ExcecaoCalendarioResponse(
                 excecao.getDescricao(),
                 excecao.getTipo(),
                 excecao.getInicio(),
-                excecao.getFim()
+                excecao.getFim(),
+                excecao.getAtivo()
         );
     }
 }

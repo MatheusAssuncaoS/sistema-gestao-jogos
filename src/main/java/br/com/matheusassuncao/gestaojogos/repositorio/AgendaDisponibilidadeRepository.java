@@ -7,4 +7,7 @@ import java.util.*;
 public interface AgendaDisponibilidadeRepository extends JpaRepository<AgendaDisponibilidade, UUID> {
     @EntityGraph(attributePaths = {"local", "modalidade", "categoria", "horarios"})
     List<AgendaDisponibilidade> findByAtivoTrueOrderByInicioAscNomeAsc();
+
+    @EntityGraph(attributePaths = {"local", "modalidade", "categoria", "horarios"})
+    List<AgendaDisponibilidade> findAllByOrderByInicioDescNomeAsc();
 }

@@ -90,7 +90,7 @@ public class AdminCalendarioController {
 
     @GetMapping("/excecoes")
     public List<ExcecaoCalendarioResponse> listarExcecoes() {
-        return calendarioService.listarExcecoesVigentes().stream()
+        return calendarioService.listarExcecoes().stream()
                 .map(ExcecaoCalendarioResponse::de)
                 .toList();
     }
