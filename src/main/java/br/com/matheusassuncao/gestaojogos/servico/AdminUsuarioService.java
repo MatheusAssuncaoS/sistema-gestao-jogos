@@ -18,15 +18,43 @@ import java.util.UUID;
 @Service
 public class AdminUsuarioService {
     private static final Logger log = LoggerFactory.getLogger(AdminUsuarioService.class);
+    private final br.com.matheusassuncao.gestaojogos.repositorio.PapelRepository papelRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     private final UsuarioRepository usuarioRepository;
     private final JogadorRepository jogadorRepository;
     private final InscricaoRepository inscricaoRepository;
 
     public AdminUsuarioService(UsuarioRepository usuarioRepository, JogadorRepository jogadorRepository,
-                               InscricaoRepository inscricaoRepository) {
+                               InscricaoRepository inscricaoRepository,
+                               br.com.matheusassuncao.gestaojogos.repositorio.PapelRepository papelRepository,
+                               org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
+        this.papelRepository = papelRepository;
+        this.passwordEncoder = passwordEncoder;
         this.usuarioRepository = usuarioRepository;
         this.jogadorRepository = jogadorRepository;
         this.inscricaoRepository = inscricaoRepository;
+    }
+
+    @Transactional
+    public Usuario criar(br.com.matheusassuncao.gestaojogos.dto.AdminCriarUsuarioRequest request, String administrador) {
+        String email = request.email().trim().toLowerCase(java.util.Locale.ROOT);
+        if (usuarioRepository.existsByEmailIgnoreCase(email)) {
+            throw new RegraNegocioException("Já existe uma conta com este e-mail.");
+        }
+        if (request.papeis() == null || request.papeis().isEmpty()
+                || !java.util.Set.of("ADMINISTRADOR", "ORGANIZADOR", "ARBITRO").containsAll(request.papeis())) {
+            throw new RegraNegocioException("Selecione perfis de acesso válidos.");
+        }
+        Usuario usuario = new Usuario(request.nome().trim(), email, passwordEncoder.encode(request.senha()));
+        for (String nome : request.papeis()) {
+            usuario.adicionarPapel(papelRepository.findByNome(nome)
+                    .orElseThrow(() -> new RegraNegocioException("Perfil de acesso não encontrado.")));
+        }
+        usuario.ativar();
+        usuario.redefinirSenha(usuario.getSenhaHash(), true);
+        Usuario salvo = usuarioRepository.save(usuario);
+        log.info("AUDITORIA admin={} acao=CRIAR_USUARIO usuario={}.", administrador, salvo.getId());
+        return salvo;
     }
 
     @Transactional

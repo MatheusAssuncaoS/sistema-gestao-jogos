@@ -1,0 +1,5 @@
+ALTER TABLE partida DROP CONSTRAINT ck_partida_status;
+
+ALTER TABLE partida ADD CONSTRAINT ck_partida_status CHECK (
+    status IN ('RASCUNHO', 'ABERTA', 'LOTADA', 'ENCERRADA', 'FINALIZADA', 'CANCELADA', 'EXCLUIDA')
+);

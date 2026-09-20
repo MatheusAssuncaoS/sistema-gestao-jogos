@@ -110,26 +110,23 @@ class CalendarioTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("RN06: dia fora do calendário é rejeitado")
+    @DisplayName("Dia definido na partida dispensa cadastro de funcionamento")
     void diaForaDoCalendario() {
         OffsetDateTime terca = proximaTerca().atTime(19, 0)
                 .atZone(FUSO_DO_CLUBE)
                 .toOffsetDateTime();
 
-        assertThatThrownBy(() -> calendarioService.validarDataDisponivel(terca))
-                .isInstanceOf(RegraNegocioException.class)
-                .hasMessageContaining("não realiza partidas");
+        assertThatCode(() -> calendarioService.validarDataDisponivel(terca)).doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("RN06: dia correto em horário não configurado é rejeitado")
+    @DisplayName("Horário definido na partida dispensa cadastro de funcionamento")
     void horarioForaDoCalendario() {
         OffsetDateTime segundaDeMadrugada = proximaSegunda().atTime(3, 0)
                 .atZone(FUSO_DO_CLUBE)
                 .toOffsetDateTime();
 
-        assertThatThrownBy(() -> calendarioService.validarDataDisponivel(segundaDeMadrugada))
-                .isInstanceOf(RegraNegocioException.class);
+        assertThatCode(() -> calendarioService.validarDataDisponivel(segundaDeMadrugada)).doesNotThrowAnyException();
     }
 
     @Test
@@ -257,6 +254,9 @@ class CalendarioTest extends IntegracaoTest {
         mockMvc.perform(get("/api/calendario/horarios-disponiveis").session(sessao))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+        mockMvc.perform(get("/api/calendario/excecoes").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
     }
 
     @Test
@@ -275,6 +275,100 @@ class CalendarioTest extends IntegracaoTest {
     void consultaExigeAutenticacao() throws Exception {
         mockMvc.perform(get("/api/calendario/horarios-disponiveis"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Autowired
+    private br.com.matheusassuncao.gestaojogos.repositorio.LocalPartidaRepository localRepository;
+
+    @Test
+    void manutencaoBloqueiaSomenteOLocalSelecionado() {
+        var campo = localRepository.findAll().getFirst();
+        var outroLocal = java.util.UUID.randomUUID();
+        var horario = calendarioService.listarProximosHorarios(30).getFirst();
+        var data = horario.atZoneSameInstant(FUSO_DO_CLUBE).toLocalDate();
+        var excecao = calendarioService.adicionarExcecao("Manutenção", TipoExcecao.BLOQUEIO, data, data, campo.getId());
+
+        assertThatThrownBy(() -> calendarioService.validarDataDisponivel(horario, campo.getId()))
+                .isInstanceOf(RegraNegocioException.class).hasMessageContaining("Manutenção");
+        assertThatCode(() -> calendarioService.validarDataDisponivel(horario, outroLocal)).doesNotThrowAnyException();
+        assertThat(calendarioService.listarProximosHorarios(30, campo.getId())).doesNotContain(horario);
+        assertThat(calendarioService.listarProximosHorarios(30, outroLocal)).contains(horario);
+        assertThat(calendarioService.listarProximosHorarios(30)).contains(horario);
+
+        calendarioService.removerExcecao(excecao.getId());
+        assertThat(calendarioService.listarProximosHorarios(30, campo.getId())).contains(horario);
+    }
+
+    @Test
+    void excecoesSobrepostasContinuamBloqueandoAteTodasSeremInativadas() {
+        var campo = localRepository.findAll().getFirst();
+        var horario = calendarioService.listarProximosHorarios(30).getFirst();
+        var data = horario.atZoneSameInstant(FUSO_DO_CLUBE).toLocalDate();
+        var feriado = calendarioService.adicionarExcecao("Feriado", TipoExcecao.FERIADO, data, data);
+        var recesso = calendarioService.adicionarExcecao("Emenda", TipoExcecao.RECESSO, data, data.plusDays(1));
+        var manutencao = calendarioService.adicionarExcecao("Manutenção", TipoExcecao.BLOQUEIO, data, data, campo.getId());
+        assertThatThrownBy(() -> calendarioService.validarDataDisponivel(horario, campo.getId()))
+                .isInstanceOf(RegraNegocioException.class);
+        calendarioService.removerExcecao(feriado.getId());
+        calendarioService.removerExcecao(manutencao.getId());
+        assertThatThrownBy(() -> calendarioService.validarDataDisponivel(horario, campo.getId()))
+                .isInstanceOf(RegraNegocioException.class).hasMessageContaining("Emenda");
+        calendarioService.removerExcecao(recesso.getId());
+        assertThatCode(() -> calendarioService.validarDataDisponivel(horario, campo.getId())).doesNotThrowAnyException();
+    }
+
+    @Test
+    void editarExcecaoPermiteTrocarEntreLocalEClubeInteiro() {
+        var campo = localRepository.findAll().getFirst();
+        var horario = calendarioService.listarProximosHorarios(30).getFirst();
+        var data = horario.atZoneSameInstant(FUSO_DO_CLUBE).toLocalDate();
+        var excecao = calendarioService.adicionarExcecao("Manutenção", TipoExcecao.BLOQUEIO, data, data, campo.getId());
+        calendarioService.editarExcecao(excecao.getId(), "Fechamento", TipoExcecao.BLOQUEIO, data, data, null);
+        assertThat(calendarioService.listarProximosHorarios(30)).doesNotContain(horario);
+        calendarioService.editarExcecao(excecao.getId(), "Manutenção", TipoExcecao.BLOQUEIO, data, data, campo.getId());
+        assertThat(calendarioService.listarProximosHorarios(30)).contains(horario);
+    }
+
+    @Test
+    void administradorCadastraExcecaoPorLocal() throws Exception {
+        criarAdministrador();
+        var campo = localRepository.findAll().getFirst();
+        var data = LocalDate.now(FUSO_DO_CLUBE).plusDays(10);
+        mockMvc.perform(post("/api/admin/calendario/excecoes").session(autenticar(EMAIL_ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"descricao":"Manutenção do campo","tipo":"BLOQUEIO",
+                                 "inicio":"%s","fim":"%s","localId":"%s"}
+                                """.formatted(data, data, campo.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.localId").value(campo.getId().toString()))
+                .andExpect(jsonPath("$.local").value(campo.getNome()));
+    }
+
+    @Autowired
+    private br.com.matheusassuncao.gestaojogos.repositorio.AgendaDisponibilidadeRepository agendaRepository;
+
+    @Autowired
+    private br.com.matheusassuncao.gestaojogos.repositorio.ModalidadeRepository modalidadeRepository;
+
+    @Test
+    void agendaAntigaNaoRestringeNemAcrescentaHorariosAoCalendarioGeral() {
+        var campo = localRepository.findAll().getFirst();
+        var modalidade = modalidadeRepository.findAll().getFirst();
+        var data = proximaTerca();
+        var horariosGerais = calendarioService.listarProximosHorarios(30);
+        var antiga = agendaRepository.save(new br.com.matheusassuncao.gestaojogos.dominio.AgendaDisponibilidade(
+                "Agenda antiga", campo, modalidade, null, data, data.plusDays(30),
+                java.util.Map.of(DayOfWeek.TUESDAY, List.of(LocalTime.of(10, 0)))));
+        try {
+            assertThat(calendarioService.listarProximosHorarios(30, campo.getId())).containsExactlyElementsOf(horariosGerais);
+            assertThatCode(() -> calendarioService.validarDataDisponivel(horariosGerais.getFirst(), campo.getId(), modalidade.getId(), null))
+                    .doesNotThrowAnyException();
+            assertThatCode(() -> calendarioService.validarDataDisponivel(data.atTime(10, 0).atZone(FUSO_DO_CLUBE).toOffsetDateTime(), campo.getId()))
+                    .doesNotThrowAnyException();
+        } finally {
+            agendaRepository.deleteById(antiga.getId());
+        }
     }
 
     private LocalDate proximaSegunda() {

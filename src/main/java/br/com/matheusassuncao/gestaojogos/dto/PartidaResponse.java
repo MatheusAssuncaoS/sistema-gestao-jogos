@@ -21,7 +21,9 @@ public record PartidaResponse(
         Boolean escalaPublicada,
         Integer versao,
         List<EquipeResponse> equipes,
-        ResumoArbitragemResponse arbitragem
+        ResumoArbitragemResponse arbitragem,
+        Integer duracaoMinutos,
+        UUID modalidadeId
 ) {
 
     public record EquipeResponse(UUID id, String nome, String cor, Integer capacidade) {
@@ -54,7 +56,9 @@ public record PartidaResponse(
                 partida.getEquipes().stream()
                         .map(EquipeResponse::de)
                         .toList(),
-                arbitragem
+                arbitragem,
+                partida.getDuracaoMinutos(),
+                partida.getModalidade().getId()
         );
     }
 }

@@ -31,8 +31,17 @@ public record CriarPartidaRequest(
 
         OffsetDateTime inscricoesAbremEm,
 
-        OffsetDateTime inscricoesEncerramEm
+        OffsetDateTime inscricoesEncerramEm,
+
+        @Min(1) @jakarta.validation.constraints.Max(1440) Integer duracaoMinutos
 ) {
+
+    public CriarPartidaRequest(UUID modalidadeId, UUID localId, Long categoriaId, OffsetDateTime inicio,
+                                Integer capacidade, OffsetDateTime abrem, OffsetDateTime encerram) {
+        this(modalidadeId, localId, categoriaId, inicio, capacidade, abrem, encerram, 60);
+    }
+
+    public int duracaoOuPadrao() { return duracaoMinutos == null ? 60 : duracaoMinutos; }
 
     /** RN02: 16 jogadores de linha no futebol. */
     public Integer capacidadeOuPadrao() {

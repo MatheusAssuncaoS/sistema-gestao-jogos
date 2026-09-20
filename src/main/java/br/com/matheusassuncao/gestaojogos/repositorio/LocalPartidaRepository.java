@@ -15,6 +15,8 @@ public interface LocalPartidaRepository extends JpaRepository<LocalPartida, UUID
 
     List<LocalPartida> findByAtivoTrue();
 
+    boolean existsByModalidades_Id(UUID modalidadeId);
+
     Optional<LocalPartida> findByNomeIgnoreCase(String nome);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

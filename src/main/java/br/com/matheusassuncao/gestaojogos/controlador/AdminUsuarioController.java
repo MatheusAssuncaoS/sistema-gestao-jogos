@@ -41,6 +41,13 @@ public class AdminUsuarioController {
         this.adminUsuarioService = adminUsuarioService;
     }
 
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public UsuarioResumoResponse criar(@RequestBody @Valid br.com.matheusassuncao.gestaojogos.dto.AdminCriarUsuarioRequest request,
+                                       Principal principal) {
+        return UsuarioResumoResponse.de(adminUsuarioService.criar(request, principal.getName()));
+    }
+
     @PutMapping("/{usuarioId}")
     public UsuarioResumoResponse atualizar(@PathVariable UUID usuarioId,
                                             @RequestBody @Valid AdminAtualizarUsuarioRequest request,

@@ -12,7 +12,9 @@ public record ExcecaoCalendarioResponse(
         TipoExcecao tipo,
         LocalDate inicio,
         LocalDate fim,
-        Boolean ativo
+        Boolean ativo,
+        UUID localId,
+        String local
 ) {
 
     public static ExcecaoCalendarioResponse de(ExcecaoCalendario excecao) {
@@ -22,7 +24,9 @@ public record ExcecaoCalendarioResponse(
                 excecao.getTipo(),
                 excecao.getInicio(),
                 excecao.getFim(),
-                excecao.getAtivo()
+                excecao.getAtivo(),
+                excecao.getLocal() == null ? null : excecao.getLocal().getId(),
+                excecao.getLocal() == null ? null : excecao.getLocal().getNome()
         );
     }
 }

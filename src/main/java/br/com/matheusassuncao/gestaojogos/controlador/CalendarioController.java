@@ -28,10 +28,17 @@ public class CalendarioController {
         this.calendarioService = calendarioService;
     }
 
+    @GetMapping("/excecoes")
+    public List<br.com.matheusassuncao.gestaojogos.dto.ExcecaoCalendarioResponse> excecoes() {
+        return calendarioService.listarExcecoesVigentes().stream()
+                .map(br.com.matheusassuncao.gestaojogos.dto.ExcecaoCalendarioResponse::de).toList();
+    }
+
     @GetMapping("/horarios-disponiveis")
     public List<OffsetDateTime> horariosDisponiveis(
-            @RequestParam(defaultValue = "" + PADRAO_DE_DIAS) int dias) {
+            @RequestParam(defaultValue = "" + PADRAO_DE_DIAS) int dias,
+            @RequestParam(required = false) java.util.UUID localId) {
 
-        return calendarioService.listarProximosHorarios(Math.min(dias, MAXIMO_DE_DIAS));
+        return calendarioService.listarProximosHorarios(Math.max(0, Math.min(dias, MAXIMO_DE_DIAS)), localId);
     }
 }

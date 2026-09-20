@@ -45,6 +45,8 @@ public class Modalidade {
         return nome;
     }
 
+    public void definirAtivo(boolean ativo) { this.ativo = ativo; }
+
     public Boolean getAtivo() {
         return ativo;
     }

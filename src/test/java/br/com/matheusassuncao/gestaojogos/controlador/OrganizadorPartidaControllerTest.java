@@ -83,6 +83,34 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     }
 
     @Test
+    @org.springframework.transaction.annotation.Transactional
+    void rejeitarLocalSemVinculoComModalidade() throws Exception {
+        criarOrganizador();
+        var outra = modalidadeRepository.save(new Modalidade("Sinuca de teste"));
+        mockMvc.perform(post("/api/organizador/partidas")
+                .session(autenticar(EMAIL_ORGANIZADOR)).contentType(MediaType.APPLICATION_JSON)
+                .content(corpoDeCriacao(proximaDataValida()).replace(modalidadeId.toString(), outra.getId().toString())))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @org.springframework.transaction.annotation.Transactional
+    void localCompartilhadoMantemConflitoEntreModalidades() throws Exception {
+        criarOrganizador();
+        var outra = modalidadeRepository.save(new Modalidade("Outra modalidade de teste"));
+        var local = localPartidaRepository.findById(localId).orElseThrow();
+        local.getModalidades().add(outra);
+        localPartidaRepository.saveAndFlush(local);
+        var sessao = autenticar(EMAIL_ORGANIZADOR);
+        var corpo = corpoDeCriacao(proximaDataValida());
+        mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                .contentType(MediaType.APPLICATION_JSON).content(corpo)).andExpect(status().isCreated());
+        mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                .contentType(MediaType.APPLICATION_JSON).content(corpo.replace(modalidadeId.toString(), outra.getId().toString())))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     @DisplayName("UC11: partida é criada em RASCUNHO já com as duas equipes")
     void criarPartida() throws Exception {
         criarOrganizador();
@@ -233,12 +261,12 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("RN06: partida fora dos dias configurados devolve 409")
+    @DisplayName("Partida aceita dia e horário sem cadastro prévio")
     void partidaForaDoCalendario() throws Exception {
         criarOrganizador();
         MockHttpSession sessao = autenticar(EMAIL_ORGANIZADOR);
 
-        // Uma terça-feira às 3h da manhã não está no calendário do clube.
+        // Dia e horário são definidos diretamente na partida.
         OffsetDateTime foraDoCalendario = OffsetDateTime.now()
                 .atZoneSameInstant(FUSO_DO_CLUBE)
                 .toLocalDate()
@@ -252,9 +280,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
                         .session(sessao)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(corpoDeCriacao(foraDoCalendario)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.detail")
-                        .value(org.hamcrest.Matchers.containsString("não realiza partidas")));
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -473,7 +499,7 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
     }
 
     @Test
-    @DisplayName("Administrador cria partidas, mas abrir e cancelar continuam restritos ao organizador")
+    @DisplayName("Administrador cria, abre e cancela partidas")
     void administradorCriaPartida() throws Exception {
         criarOrganizador();
         UUID partidaId = criarPartidaViaApi(autenticar(EMAIL_ORGANIZADOR));
@@ -488,13 +514,50 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/organizador/partidas/{id}/abrir", partidaId).session(sessaoAdmin))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ABERTA"));
+
+        mockMvc.perform(post("/api/organizador/partidas/{id}/abrir", partidaId).session(sessaoAdmin))
+                .andExpect(status().isConflict());
 
         mockMvc.perform(post("/api/organizador/partidas/{id}/cancelar", partidaId).session(sessaoAdmin))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
 
         mockMvc.perform(get("/api/organizador/partidas/modalidades").session(sessaoAdmin))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void exclusaoLogicaMantemPartidaNoHistoricoELiberaHorario() throws Exception {
+        criarAdministrador();
+        MockHttpSession sessao = autenticar(EMAIL_ADMIN);
+        OffsetDateTime inicio = proximaDataValida();
+        UUID partidaId = extrairId(mockMvc.perform(post("/api/organizador/partidas")
+                        .session(sessao).contentType(MediaType.APPLICATION_JSON)
+                        .content(corpoDeCriacao(inicio)))
+                .andExpect(status().isCreated()).andReturn());
+
+        mockMvc.perform(post("/api/organizador/partidas/{id}/excluir", partidaId).session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EXCLUIDA"));
+        mockMvc.perform(get("/api/organizador/partidas").session(sessao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '%s')].status".formatted(partidaId)).value("EXCLUIDA"));
+        mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                        .contentType(MediaType.APPLICATION_JSON).content(corpoDeCriacao(inicio)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void somenteRascunhoPodeSerExcluido() throws Exception {
+        criarAdministrador();
+        MockHttpSession sessao = autenticar(EMAIL_ADMIN);
+        UUID partidaId = criarPartidaViaApi(sessao);
+        mockMvc.perform(post("/api/organizador/partidas/{id}/abrir", partidaId).session(sessao))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/organizador/partidas/{id}/excluir", partidaId).session(sessao))
+                .andExpect(status().isConflict());
     }
 
     @Test
@@ -544,6 +607,95 @@ class OrganizadorPartidaControllerTest extends IntegracaoTest {
                 .orElseThrow(() -> new IllegalStateException(
                         "O calendário padrão deveria oferecer mais de um horário."
                 ));
+    }
+
+    @Test
+    void criaAbertaQuandoInscricoesJaEstaoNoPrazo() throws Exception {
+        criarOrganizador();
+        var agora = OffsetDateTime.now();
+        mockMvc.perform(post("/api/organizador/partidas").session(autenticar(EMAIL_ORGANIZADOR))
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"modalidadeId":"%s","localId":"%s","inicio":"%s",
+                 "inscricoesAbremEm":"%s","inscricoesEncerramEm":"%s"}
+                """.formatted(modalidadeId, localId, agora.plusDays(2), agora.minusMinutes(1), agora.plusDays(1))))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("ABERTA"));
+    }
+
+    @Test
+    void editarRascunhoAbreInscricoesQuandoPrazoJaComecou() throws Exception {
+        criarOrganizador();
+        var sessao = autenticar(EMAIL_ORGANIZADOR);
+        var id = criarPartidaViaApi(sessao);
+        var partida = partidaRepository.findById(id).orElseThrow();
+        mockMvc.perform(put("/api/organizador/partidas/{id}", id).session(sessao)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"localId":"%s","inicio":"%s","versao":%d,
+                 "inscricoesAbremEm":"%s"}
+                """.formatted(localId, partida.getInicio(), partida.getVersao(), OffsetDateTime.now().minusMinutes(1))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ABERTA"));
+    }
+
+    @Test
+    void rotinaAbreNoPrazoUmaVezEAtualizaVersao() throws Exception {
+        criarOrganizador();
+        var sessao = autenticar(EMAIL_ORGANIZADOR);
+        var abre = OffsetDateTime.now().plusDays(1).withNano(0);
+        var resultado = mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"modalidadeId":"%s","localId":"%s","inicio":"%s",
+                 "inscricoesAbremEm":"%s","inscricoesEncerramEm":"%s"}
+                """.formatted(modalidadeId, localId, abre.plusDays(2), abre, abre.plusDays(1))))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("RASCUNHO")).andReturn();
+        var id = extrairId(resultado);
+        var versao = partidaRepository.findById(id).orElseThrow().getVersao();
+        assertThat(partidaRepository.abrirInscricoesAgendadas(abre.minusSeconds(1))).isZero();
+        assertThat(partidaRepository.abrirInscricoesAgendadas(abre)).isEqualTo(1);
+        var atualizada = partidaRepository.findById(id).orElseThrow();
+        assertThat(atualizada.getStatus().name()).isEqualTo("ABERTA");
+        assertThat(atualizada.getVersao()).isEqualTo(versao + 1);
+        assertThat(partidaRepository.abrirInscricoesAgendadas(abre)).isZero();
+    }
+
+    @Test
+    void duracaoReservaTodoOIntervaloEAceitaPartidaNoTerminoExato() throws Exception {
+        criarOrganizador();
+        var sessao = autenticar(EMAIL_ORGANIZADOR);
+        var inicio = proximaDataValida();
+        mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(corpoDeCriacao(inicio).replace("}", ", \"duracaoMinutos\": 90}")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.duracaoMinutos").value(90));
+        mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                .contentType(MediaType.APPLICATION_JSON).content(corpoDeCriacao(inicio.plusMinutes(30))))
+                .andExpect(status().isConflict());
+        mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                .contentType(MediaType.APPLICATION_JSON).content(corpoDeCriacao(inicio.plusMinutes(90))))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.duracaoMinutos").value(60));
+    }
+
+    @Test
+    void permiteEditarDuracaoDaPartida() throws Exception {
+        criarOrganizador();
+        var sessao = autenticar(EMAIL_ORGANIZADOR);
+        var id = criarPartidaViaApi(sessao);
+        var partida = partidaRepository.findById(id).orElseThrow();
+        mockMvc.perform(put("/api/organizador/partidas/{id}", id).session(sessao)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(corpoDeEdicao(partida.getInicio(), partida.getVersao()).replace("}", ", \"duracaoMinutos\": 75}")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.duracaoMinutos").value(75));
+        assertThat(partidaRepository.findById(id).orElseThrow().getDuracaoMinutos()).isEqualTo(75);
+    }
+
+    @Test
+    void duracaoInvalidaEhRejeitada() throws Exception {
+        criarOrganizador();
+        var sessao = autenticar(EMAIL_ORGANIZADOR);
+        for (int duracao : new int[]{0, -1, 1441}) {
+            mockMvc.perform(post("/api/organizador/partidas").session(sessao)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(corpoDeCriacao(proximaDataValida()).replace("}", ", \"duracaoMinutos\": " + duracao + "}")))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     private UUID criarPartidaViaApi(MockHttpSession sessao) throws Exception {

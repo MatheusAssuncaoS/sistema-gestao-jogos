@@ -20,6 +20,8 @@ public record ExcecaoCalendarioRequest(
         LocalDate inicio,
 
         @NotNull(message = "A data final é obrigatória.")
-        LocalDate fim
+        LocalDate fim,
+
+        java.util.UUID localId
 ) {
 }

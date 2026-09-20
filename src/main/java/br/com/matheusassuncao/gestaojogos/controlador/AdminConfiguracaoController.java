@@ -24,13 +24,13 @@ public class AdminConfiguracaoController {
         this.configuracoes = configuracoes;
     }
 
-    @GetMapping("/modalidades") public List<ModalidadeResponse> modalidades() { return partidas.listarModalidadesAtivas(); }
-    @PostMapping("/modalidades") public ResponseEntity<ModalidadeResponse> criarModalidade(@RequestBody @Valid CriarModalidadeRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(ModalidadeResponse.de(configuracoes.criarModalidade(request.nome()))); }
-    @PutMapping("/modalidades/{modalidadeId}") public ModalidadeResponse editarModalidade(@PathVariable UUID modalidadeId, @RequestBody @Valid CriarModalidadeRequest request) { return ModalidadeResponse.de(configuracoes.editarModalidade(modalidadeId, request.nome())); }
+    @GetMapping("/modalidades") public List<ModalidadeResponse> modalidades() { return configuracoes.listarModalidades(); }
+    @PostMapping("/modalidades") public ResponseEntity<ModalidadeResponse> criarModalidade(@RequestBody @Valid CriarModalidadeRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(ModalidadeResponse.de(configuracoes.criarModalidade(request.nome(), request.ativo()))); }
+    @PutMapping("/modalidades/{modalidadeId}") public ModalidadeResponse editarModalidade(@PathVariable UUID modalidadeId, @RequestBody @Valid CriarModalidadeRequest request) { return ModalidadeResponse.de(configuracoes.editarModalidade(modalidadeId, request.nome(), request.ativo())); }
     @DeleteMapping("/modalidades/{modalidadeId}") @ResponseStatus(HttpStatus.NO_CONTENT) public void excluirModalidade(@PathVariable UUID modalidadeId) { configuracoes.excluirModalidade(modalidadeId); }
-    @GetMapping("/locais") public List<LocalPartidaResponse> locais() { return partidas.listarLocaisAtivos(); }
-    @PostMapping("/locais") public ResponseEntity<LocalPartidaResponse> criarLocal(@RequestBody @Valid CriarLocalPartidaRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(LocalPartidaResponse.de(configuracoes.criarLocal(request.nome(), request.descricao()))); }
-    @PutMapping("/locais/{localId}") public LocalPartidaResponse editarLocal(@PathVariable UUID localId, @RequestBody @Valid CriarLocalPartidaRequest request) { return LocalPartidaResponse.de(configuracoes.editarLocal(localId, request.nome(), request.descricao())); }
+    @GetMapping("/locais") public List<LocalPartidaResponse> locais() { return configuracoes.listarLocais(); }
+    @PostMapping("/locais") public ResponseEntity<LocalPartidaResponse> criarLocal(@RequestBody @Valid CriarLocalPartidaRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(LocalPartidaResponse.de(configuracoes.criarLocal(request.nome(), request.descricao(), request.modalidadeIds(), request.ativo()))); }
+    @PutMapping("/locais/{localId}") public LocalPartidaResponse editarLocal(@PathVariable UUID localId, @RequestBody @Valid CriarLocalPartidaRequest request) { return LocalPartidaResponse.de(configuracoes.editarLocal(localId, request.nome(), request.descricao(), request.modalidadeIds(), request.ativo())); }
     @DeleteMapping("/locais/{localId}") @ResponseStatus(HttpStatus.NO_CONTENT) public void excluirLocal(@PathVariable UUID localId) { configuracoes.excluirLocal(localId); }
     @GetMapping("/categorias") public List<CategoriaResponse> categorias() { return partidas.listarCategoriasAtivas(); }
     @PostMapping("/categorias") public ResponseEntity<CategoriaResponse> criarCategoria(@RequestBody @Valid CriarCategoriaRequest request) { return ResponseEntity.status(HttpStatus.CREATED).body(CategoriaResponse.de(configuracoes.criarCategoria(request.nome(), request.peso()))); }

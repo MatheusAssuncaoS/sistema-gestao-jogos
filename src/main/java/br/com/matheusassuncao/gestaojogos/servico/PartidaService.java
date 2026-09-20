@@ -142,11 +142,12 @@ public class PartidaService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Modalidade não encontrada."));
 
         LocalPartida local = buscarLocalComBloqueio(request.localId());
+        validarModalidadeLocal(local, modalidade);
         Categoria categoria = buscarCategoriaOpcional(request.categoriaId());
         Usuario organizador = buscarOrganizador(emailDoOrganizador);
 
         calendarioService.validarDataDisponivel(request.inicio(), local.getId(), modalidade.getId(), categoria == null ? null : categoria.getId());
-        validarHorarioLivre(local.getId(), request.inicio(), null);
+        validarHorarioLivre(local.getId(), request.inicio(), request.duracaoOuPadrao(), null);
 
         validarPeriodoDeInscricao(
                 request.inscricoesAbremEm(),
@@ -165,6 +166,8 @@ public class PartidaService {
                 organizador
         );
 
+        partida.definirDuracao(request.duracaoOuPadrao());
+        partida.abrirInscricoesSeNoPrazo(OffsetDateTime.now());
         partidaRepository.save(partida);
 
         log.info("Partida {} criada para {}.", partida.getId(), partida.getInicio());
@@ -178,7 +181,7 @@ public class PartidaService {
     public List<PartidaResponse> criarLote(CriarPartidasLoteRequest request, String emailDoOrganizador) {
         return request.inicios().stream().distinct().sorted().map(inicio -> criar(
                 new CriarPartidaRequest(request.modalidadeId(), request.localId(), request.categoriaId(), inicio,
-                        request.capacidade(), request.inscricoesAbremEm(), request.inscricoesEncerramEm()),
+                        request.capacidade(), request.inscricoesAbremEm(), request.inscricoesEncerramEm(), request.duracaoMinutos()),
                 emailDoOrganizador)).toList();
     }
 
@@ -195,10 +198,11 @@ public class PartidaService {
         }
 
         LocalPartida local = buscarLocalComBloqueio(request.localId());
+        validarModalidadeLocal(local, partida.getModalidade());
         Categoria categoria = buscarCategoriaOpcional(request.categoriaId());
 
         calendarioService.validarDataDisponivel(request.inicio(), local.getId(), partida.getModalidade().getId(), categoria == null ? null : categoria.getId());
-        validarHorarioLivre(local.getId(), request.inicio(), partidaId);
+        validarHorarioLivre(local.getId(), request.inicio(), request.duracaoMinutos() == null ? partida.getDuracaoMinutos() : request.duracaoMinutos(), partidaId);
 
         validarPeriodoDeInscricao(
                 request.inscricoesAbremEm(),
@@ -214,6 +218,8 @@ public class PartidaService {
                 request.inscricoesEncerramEm()
         );
 
+        if (request.duracaoMinutos() != null) partida.definirDuracao(request.duracaoMinutos());
+        partida.abrirInscricoesSeNoPrazo(OffsetDateTime.now());
         partidaRepository.flush();
 
         return responder(partida);
@@ -249,6 +255,22 @@ public class PartidaService {
         return responder(partida);
     }
 
+    /** Exclusão lógica para corrigir um cadastro ainda em rascunho. */
+    @Transactional
+    public PartidaResponse excluir(UUID partidaId) {
+        Partida partida = buscar(partidaId);
+        partida.excluir();
+        log.info("Partida {} marcada como excluída.", partidaId);
+        return responder(partida);
+    }
+
+    private void validarModalidadeLocal(LocalPartida local, Modalidade modalidade) {
+        if (!Boolean.TRUE.equals(local.getAtivo()) || !Boolean.TRUE.equals(modalidade.getAtivo()))
+            throw new RegraNegocioException("Local e modalidade devem estar ativos.");
+        if (!local.permiteModalidade(modalidade.getId()))
+            throw new RegraNegocioException("O local não está vinculado à modalidade selecionada.");
+    }
+
     private LocalPartida buscarLocal(UUID localId) {
         return localPartidaRepository.findById(localId)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Local não encontrado."));
@@ -259,11 +281,9 @@ public class PartidaService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Local não encontrado."));
     }
 
-    private void validarHorarioLivre(UUID localId, OffsetDateTime inicio, UUID partidaIgnorada) {
-        boolean ocupado = partidaIgnorada == null
-                ? partidaRepository.existsByLocal_IdAndInicioAndStatusNot(localId, inicio, StatusPartida.CANCELADA)
-                : partidaRepository.existsByLocal_IdAndInicioAndStatusNotAndIdNot(
-                        localId, inicio, StatusPartida.CANCELADA, partidaIgnorada);
+    private void validarHorarioLivre(UUID localId, OffsetDateTime inicio, int duracao, UUID partidaIgnorada) {
+        boolean ocupado = partidaRepository.existeSobreposicao(localId, inicio, inicio.plusMinutes(duracao),
+                partidaIgnorada == null ? new UUID(0, 0) : partidaIgnorada);
         if (ocupado) {
             throw new RegraNegocioException("Já existe uma partida marcada neste local, dia e horário.");
         }

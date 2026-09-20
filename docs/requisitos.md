@@ -69,8 +69,8 @@ Após realizar o login com cadastro aprovado e situação associativa regular, o
 | RN03 | Os goleiros não contam para o limite de participantes. |
 | RN04 | Ao atingir 16 confirmados, a partida deixa de aceitar inscrições diretas; novos interessados são direcionados à lista de espera (ver RN12). |
 | RN05 | O sistema deve informar a cor do colete (Azul ou Amarelo) de cada jogador **após a publicação da escalação** pelo organizador. |
-| RN06 | As partidas ocorrem apenas em dias configurados pelos administradores. |
-| RN07 | Feriados e recessos impedem a criação de partidas. |
+| RN06 | O período, os dias da semana e o horário são definidos diretamente na criação de partidas, sem cadastro prévio de funcionamento. |
+| RN07 | Exceções por data ou período (feriados, emendas, recessos e manutenção) impedem agendamentos no clube inteiro ou em um local específico. As datas inicial e final são incluídas; exceções sobrepostas são respeitadas até sua inativação. |
 | RN08 | Jogadores suspensos não podem realizar inscrições. |
 | RN09 | Os períodos de suspensão são parametrizáveis. |
 | RN10 | Os organizadores podem reorganizar manualmente os times. |
@@ -116,7 +116,7 @@ Após realizar o login com cadastro aprovado e situação associativa regular, o
 | UC18 | Gerenciar usuários | Criar, editar, bloquear e excluir usuários. |
 | UC19 | Gerenciar organizadores | Definir usuários como organizadores. |
 | UC20 | Gerenciar modalidades | Cadastrar novos jogos (futebol, damas, sinuca etc.). |
-| UC21 | Gerenciar calendário | Configurar dias de funcionamento, horários, feriados e recessos. |
+| UC21 | Gerenciar calendário | Configurar exceções para o clube inteiro ou para um local. Dias e horários são definidos na tela Nova Partida. |
 | UC22 | Gerenciar locais | Cadastrar e editar locais das partidas. |
 | UC23 | Gerenciar categorias | Manter Séries A, B e C. |
 | UC24 | Gerenciar tipos de penalidade | Definir infrações e dias de suspensão. |

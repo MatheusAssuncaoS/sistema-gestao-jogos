@@ -6,10 +6,11 @@ import java.util.UUID;
 
 public record ModalidadeResponse(
         UUID id,
-        String nome
+        String nome,
+        Boolean ativo
 ) {
 
     public static ModalidadeResponse de(Modalidade modalidade) {
-        return new ModalidadeResponse(modalidade.getId(), modalidade.getNome());
+        return new ModalidadeResponse(modalidade.getId(), modalidade.getNome(), modalidade.getAtivo());
     }
 }

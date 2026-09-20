@@ -27,6 +27,8 @@ public record EditarPartidaRequest(
          * é rejeitada em vez de sobrescrever silenciosamente.
          */
         @NotNull(message = "A versão da partida é obrigatória.")
-        Integer versao
+        Integer versao,
+
+        @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(1440) Integer duracaoMinutos
 ) {
 }

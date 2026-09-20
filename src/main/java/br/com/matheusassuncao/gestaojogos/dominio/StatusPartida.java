@@ -13,13 +13,14 @@ public enum StatusPartida {
     LOTADA,
     ENCERRADA,
     FINALIZADA,
-    CANCELADA;
+    CANCELADA,
+    EXCLUIDA;
 
     public boolean aceitaEdicao() {
         return this == RASCUNHO || this == ABERTA;
     }
 
     public boolean estaEncerrada() {
-        return this == ENCERRADA || this == FINALIZADA || this == CANCELADA;
+        return this == ENCERRADA || this == FINALIZADA || this == CANCELADA || this == EXCLUIDA;
     }
 }

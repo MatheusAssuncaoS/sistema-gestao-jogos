@@ -40,6 +40,10 @@ public class ExcecaoCalendario {
     @Column(nullable = false)
     private LocalDate fim;
 
+    @jakarta.persistence.ManyToOne
+    @jakarta.persistence.JoinColumn(name = "local_id")
+    private LocalPartida local;
+
     @Column(nullable = false)
     private Boolean ativo = true;
 
@@ -55,6 +59,14 @@ public class ExcecaoCalendario {
         this.tipo = tipo;
         this.inicio = inicio;
         this.fim = fim;
+    }
+
+    public LocalPartida getLocal() { return local; }
+
+    public void definirLocal(LocalPartida local) { this.local = local; }
+
+    public boolean cobre(LocalDate data, UUID localId) {
+        return Boolean.TRUE.equals(ativo) && cobre(data) && (local == null || local.getId().equals(localId));
     }
 
     public boolean cobre(LocalDate data) {

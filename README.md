@@ -51,11 +51,17 @@ O custo aparece em dois pontos. Primeiro, o estado da sessão vive na memória d
 
 A migração planejada para JWT stateless resolve os dois pontos de uma vez: nada de estado no servidor e nenhum header enviado automaticamente pelo navegador, o que torna o CSRF inaplicável. O trade-off que ela traz é o logout, já que um token continua válido até expirar a menos que se mantenha uma lista de revogação.
 
-### Calendário: o fuso é o do clube, não o de quem faz a requisição
+### Calendário geral do clube
 
-O clube funciona em dias e horários fixos (RN06) e fecha em feriados e recessos (RN07). Essas regras são inerentemente locais: "partida na segunda às 19h" significa 19h no horário de Brasília, independentemente de onde o cliente que faz a requisição está.
+O período, os dias da semana e o horário são definidos diretamente em Nova Partida (RN06). Configurações contém somente exceções; não é necessário cadastrar funcionamento ou agendas por modalidade. As agendas antigas permanecem armazenadas para histórico, mas não determinam a disponibilidade e não aceitam novos cadastros ou edições.
 
-Por isso o `CalendarioService` converte todo `OffsetDateTime` recebido para `America/Sao_Paulo` antes de comparar com os dias e horários configurados. Sem essa conversão, um cliente enviando a data em UTC faria a validação comparar 22h com 19h e rejeitar um agendamento legítimo — um bug sutil, que só costuma aparecer em produção, quando o fuso do cliente diverge do fuso do servidor.
+As exceções (RN07) bloqueiam dias inteiros, incluindo as datas inicial e final: feriados, recessos/emendas e manutenção ou outros bloqueios. `localId` omitido ou nulo indica o clube inteiro; quando informado, bloqueia somente esse local. Exceções podem se sobrepor, e inativar uma delas não elimina os demais bloqueios. Partidas existentes são preservadas e devem ser revisadas pela equipe quando afetadas.
+
+A consulta `GET /api/calendario/horarios-disponiveis?dias=730&localId=<uuid>` desconta as exceções gerais e as do local informado. Sem `localId`, retorna os horários gerais, descontando somente os bloqueios do clube inteiro. Esse endpoint permanece como sugestão legada; não limita a criação. A tela Nova Partida consulta `GET /api/calendario/excecoes` e gera as datas escolhidas, descontando bloqueios e horários ocupados. A criação e a edição validam as exceções do local escolhido no servidor.
+
+A migration V16 adiciona o local opcional às exceções existentes, que continuam globais. Os antigos registros de funcionamento são preservados, mas deixam de restringir a criação e edição de partidas.
+
+O `CalendarioService` converte as datas recebidas para `America/Sao_Paulo`: uma partida na segunda às 19h significa 19h no horário do clube, independentemente do fuso do cliente.
 
 ## Documentação
 
@@ -79,3 +85,15 @@ A aplicação sobe em `http://localhost:8080`. Para rodar os testes: `./mvnw ver
 ## Licença
 
 Distribuído sob a licença MIT. Veja [LICENSE](LICENSE) para mais informações.
+
+### Abertura automática de inscrições
+
+Ao criar ou editar uma partida, informar o início das inscrições ativa a abertura automática: se o prazo já começou e ainda está vigente, a partida sai de rascunho para aberta imediatamente. Para datas futuras, o backend verifica as aberturas a cada 15 segundos, inclusive após reinicializações. A rotina não abre partidas canceladas, iniciadas ou com inscrições vencidas, e atualiza a versão para respeitar edições concorrentes. Sem início das inscrições, a abertura permanece manual. A arbitragem não é iniciada por essa rotina.
+
+### Duração prevista
+
+O cadastro individual e em lote permite definir `duracaoMinutos` (1 a 1440 minutos). A edição pode atualizar essa duração. Partidas existentes recebem 60 minutos na migration V17 e podem ser ajustadas. A disponibilidade considera o intervalo inteiro no local: o fim de uma partida pode coincidir com o início da próxima, sem sobreposição. Essa duração representa o tempo previsto de ocupação, sem alterar o cronômetro da arbitragem.
+
+### Cancelamento e exclusão lógica de partidas
+
+Partidas em rascunho podem ser marcadas como `EXCLUIDA` quando o cadastro foi feito por engano. O registro permanece no histórico e libera o horário do local. O cancelamento usa `CANCELADA`, pode ser aplicado a rascunhos, partidas abertas ou lotadas e cancela suas inscrições ativas. Partidas excluídas não aparecem na agenda da arbitragem nem nos indicadores operacionais.

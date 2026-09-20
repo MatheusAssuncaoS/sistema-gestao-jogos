@@ -104,7 +104,7 @@ public class AdminCalendarioController {
                         request.descricao(),
                         request.tipo(),
                         request.inicio(),
-                        request.fim()
+                        request.fim(), request.localId()
                 )
         );
 
@@ -121,6 +121,6 @@ public class AdminCalendarioController {
     public ExcecaoCalendarioResponse editarExcecao(@PathVariable UUID excecaoId,
                                                     @RequestBody @Valid ExcecaoCalendarioRequest request) {
         return ExcecaoCalendarioResponse.de(calendarioService.editarExcecao(
-                excecaoId, request.descricao(), request.tipo(), request.inicio(), request.fim()));
+                excecaoId, request.descricao(), request.tipo(), request.inicio(), request.fim(), request.localId()));
     }
 }

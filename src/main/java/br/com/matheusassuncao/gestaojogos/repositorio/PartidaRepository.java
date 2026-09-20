@@ -16,6 +16,27 @@ import java.util.UUID;
 
 public interface PartidaRepository extends JpaRepository<Partida, UUID> {
 
+    /** Atualização condicional atômica: não reabre canceladas e participa do lock otimista. */
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Partida p SET p.status = br.com.matheusassuncao.gestaojogos.dominio.StatusPartida.ABERTA,
+                p.versao = p.versao + 1
+            WHERE p.status = br.com.matheusassuncao.gestaojogos.dominio.StatusPartida.RASCUNHO
+                AND p.inscricoesAbremEm IS NOT NULL AND p.inscricoesAbremEm <= :agora
+                AND p.inicio > :agora
+                AND (p.inscricoesEncerramEm IS NULL OR p.inscricoesEncerramEm > :agora)
+            """)
+    int abrirInscricoesAgendadas(@Param("agora") OffsetDateTime agora);
+
+    @Query(value = """
+            SELECT EXISTS(SELECT 1 FROM partida p WHERE p.local_id = :localId
+              AND p.status NOT IN ('CANCELADA', 'EXCLUIDA') AND p.id <> :ignorada
+              AND p.inicio < :fim AND p.inicio + p.duracao_minutos * INTERVAL '1 minute' > :inicio)
+            """, nativeQuery = true)
+    boolean existeSobreposicao(@Param("localId") UUID localId, @Param("inicio") OffsetDateTime inicio,
+                               @Param("fim") OffsetDateTime fim, @Param("ignorada") UUID ignorada);
+
     boolean existsByModalidade_Id(UUID modalidadeId);
 
     boolean existsByLocal_Id(UUID localId);

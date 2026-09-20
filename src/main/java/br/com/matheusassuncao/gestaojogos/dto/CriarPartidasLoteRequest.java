@@ -11,5 +11,6 @@ public record CriarPartidasLoteRequest(
         @NotEmpty @Size(max = 200) List<@NotNull @Future OffsetDateTime> inicios,
         @Min(2) Integer capacidade,
         OffsetDateTime inscricoesAbremEm,
-        OffsetDateTime inscricoesEncerramEm
+        OffsetDateTime inscricoesEncerramEm,
+        @Min(1) @Max(1440) Integer duracaoMinutos
 ) {}

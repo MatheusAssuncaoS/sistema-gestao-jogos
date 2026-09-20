@@ -1,6 +1,8 @@
 package br.com.matheusassuncao.gestaojogos.dominio;
 
-import jakarta.persistence.Column;
+import jakarta.persistence.*;
+import java.util.Set;
+import java.util.HashSet;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -24,6 +26,18 @@ public class LocalPartida {
 
     @Column(nullable = false)
     private Boolean ativo = true;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "local_modalidade", joinColumns = @JoinColumn(name = "local_id"),
+            inverseJoinColumns = @JoinColumn(name = "modalidade_id"))
+    private Set<Modalidade> modalidades = new HashSet<>();
+
+    public Set<Modalidade> getModalidades() { return modalidades; }
+    public void definirModalidades(Set<Modalidade> modalidades) { this.modalidades = new HashSet<>(modalidades); }
+    public void definirAtivo(boolean ativo) { this.ativo = ativo; }
+    public boolean permiteModalidade(UUID id) {
+        return modalidades.stream().anyMatch(m -> m.getId().equals(id));
+    }
 
     protected LocalPartida() {
         // exigido pelo JPA

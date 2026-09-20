@@ -57,6 +57,17 @@ public class Partida {
     @Column(nullable = false)
     private Integer capacidade;
 
+    @Column(name = "duracao_minutos", nullable = false)
+    private Integer duracaoMinutos = 60;
+
+    public Integer getDuracaoMinutos() { return duracaoMinutos; }
+
+    public void definirDuracao(Integer minutos) {
+        if (minutos == null || minutos < 1 || minutos > 1440)
+            throw new RegraNegocioException("A duração deve ser de 1 a 1440 minutos.");
+        duracaoMinutos = minutos;
+    }
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StatusPartida status = StatusPartida.RASCUNHO;
@@ -137,6 +148,14 @@ public class Partida {
         this.inscricoesEncerramEm = inscricoesEncerramEm;
     }
 
+    public void abrirInscricoesSeNoPrazo(OffsetDateTime agora) {
+        if (status == StatusPartida.RASCUNHO && inscricoesAbremEm != null
+                && !agora.isBefore(inscricoesAbremEm) && agora.isBefore(inicio)
+                && (inscricoesEncerramEm == null || agora.isBefore(inscricoesEncerramEm))) {
+            abrir();
+        }
+    }
+
     public void abrir() {
         if (status != StatusPartida.RASCUNHO) {
             throw new RegraNegocioException(
@@ -155,6 +174,15 @@ public class Partida {
         }
 
         this.status = StatusPartida.CANCELADA;
+    }
+
+    public void excluir() {
+        if (status != StatusPartida.RASCUNHO) {
+            throw new RegraNegocioException(
+                    "Só é possível excluir uma partida que ainda está em rascunho."
+            );
+        }
+        this.status = StatusPartida.EXCLUIDA;
     }
 
     /**

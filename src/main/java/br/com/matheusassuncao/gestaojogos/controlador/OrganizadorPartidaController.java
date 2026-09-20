@@ -46,8 +46,8 @@ public class OrganizadorPartidaController {
 
     /**
      * Listar, detalhar e consultar inscritos também são permitidos ao
-     * administrador. Ele também pode criar rascunhos, mas editar, abrir e
-     * cancelar continuam exclusivos do organizador. @PreAuthorize no método
+     * administrador, que pode criar, editar e abrir partidas para inscrições.
+     * Cancelar continua exclusivo do organizador. @PreAuthorize no método
      * sobrescreve o da classe somente nos endpoints indicados.
      */
     @GetMapping
@@ -104,14 +104,22 @@ public class OrganizadorPartidaController {
     }
 
     @PostMapping("/{partidaId}/abrir")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
     public PartidaResponse abrir(@PathVariable UUID partidaId) {
         return partidaService.abrir(partidaId);
     }
 
     @PostMapping("/{partidaId}/cancelar")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
     public PartidaResponse cancelar(@PathVariable UUID partidaId,
                                     @AuthenticationPrincipal UserDetails organizador) {
         return partidaService.cancelar(partidaId, organizador.getUsername());
+    }
+
+    @PostMapping("/{partidaId}/excluir")
+    @PreAuthorize("hasAnyRole('ORGANIZADOR', 'ADMINISTRADOR')")
+    public PartidaResponse excluir(@PathVariable UUID partidaId) {
+        return partidaService.excluir(partidaId);
     }
 
     /**
